@@ -1,11 +1,13 @@
-package br.com.studyflow;
+package com.example.studyFlow;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
 class StudyFlowApplicationTests {
-    @Test
-    void contextLoads() {
-    }
+
+	@Test
+	void contextLoads() {
+	}
+
 }
