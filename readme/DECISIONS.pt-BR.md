@@ -41,3 +41,9 @@ Copiem o modelo abaixo sempre que precisarem de uma entrada nova.
 - **Decisão:** HTML, CSS, JavaScript.
 - **Alternativas consideradas:** nenhuma.
 - **Motivo:** Facilidade, projeto não é tão massivo.
+
+## [25/11] — [Decisão do Projeto]
+
+- **Decisão:** Projeto esqueleto e MVP funcionando.
+- **Alternativas consideradas:** Claude.
+- **Motivo:** IA mais funcional.
