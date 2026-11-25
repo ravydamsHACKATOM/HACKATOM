@@ -1,0 +1,9 @@
+# Arquivos Java compilados
+*.class
+
+# Pastas de compilação
+target/
+build/
+
+# Variáveis de ambiente
+.env
