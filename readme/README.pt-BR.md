@@ -1,4 +1,4 @@
-# [Nome do projeto]
+# Study Flow 📖
 
 [English](README.md) · **Português (Brasil)**
 
@@ -13,9 +13,9 @@ No primeiro dia, adicionem o professor como colaborador do repositório, com o e
 ## Equipe
 
 - **Turma:** TDS — turmas mistas 6570, 6756 e 6863
-- **Tech Lead:**
-- **Responsável pela apresentação:**
-- **Integrantes:**
+- **Tech Lead:** Ana Carolina Dutra.
+- **Responsável pela apresentação:** Victor Fanti Antonietti.
+- **Integrantes:** Yuri José Machado Ribeiro, Raphael Vieira Lutkemeyer Sausen, Victor Fanti Antonietti e Ana Carolina Dutra.
   - Ana Carolina — GitHub
   - Vitor — GitHub
   - Raphael — GitHub
@@ -27,15 +27,21 @@ Agenda de estudos — vida no campus e comunidade
 
 ## Problema
 
-(qual problema vocês estão resolvendo, e para quem)
+A falta de organização e disciplina é um problema comum entre os estudantes, tanto neurotípicos quanto neurodivergentes, pois muitos têm dificuldade em administrar seu tempo, cumprir horários e organizar suas tarefas. Escolhemos esse problema porque a falta de planejamento pode causar atrasos, acúmulo de atividades e procrastinação.
 
 ## Solução
 
-(o que a aplicação faz e qual é o recorte do MVP)
+Nossa aplicação será uma agenda de estudos digital, desenvolvida para auxiliar estudantes neurotípicos e neurodivergentes a organizarem sua rotina de estudos. Ela permitirá cadastrar matérias, organizar horários, criar tarefas, definir metas e acompanhar atividades concluídas.
+
+Recorte do MVP (versão inicial): A primeira versão contará com cadastro de matérias, criação de tarefas, definição de datas e horários, lembretes e marcação de atividades concluídas. O objetivo é oferecer uma ferramenta simples, acessível e prática, que incentive a organização, a disciplina e a autonomia nos estudos.
 
 ## Stack
 
-(linguagens, frameworks e bibliotecas; o back-end pode ser Java, Python ou Node.js, isolados ou combinados, desde que integrados; o front-end é obrigatório — web, desktop ou mobile)
+Linguagem: Java
+Framework: Spring
+Biblioteca: 
+Front-end: HTML, CSS
+Back-end: JavaScript
 
 ## Estrutura de pastas
 
@@ -58,7 +64,8 @@ Descrevam a organização do repositório. Ajustem o exemplo abaixo à escolha d
 
 ### Pré-requisitos
 
-(versões de linguagem, gerenciadores de pacote, banco de dados etc.)
+Java 21.0.7
+Banco de dados: SQL Lite
 
 ### Back-end
 

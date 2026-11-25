@@ -18,15 +18,26 @@ Copiem o modelo abaixo sempre que precisarem de uma entrada nova.
 - **Alternativas consideradas:**
 - **Motivo:**
 ```
+## [23/11] — [Teach Lead]
 
-## 23/11/2026 — Escolha da stack de back-end (exemplo)
+- **Decisão:** Teach Lead: Ana Carolina
+- **Alternativas consideradas:** Raphael.
+- **Motivo:** Ana tem mais conhecimento.
 
-- **Decisão:** usar Node.js com Express no back-end.
-- **Alternativas consideradas:** Java com Spring Boot; Python com FastAPI.
-- **Motivo:** o time já tem mais familiaridade com JavaScript, e o prazo de uma semana favorece uma stack na qual todos conseguem contribuir desde o primeiro dia.
+## [23/11] — [Presenter]
 
-## [data] — [título da decisão]
+- **Decisão:** Apresentador: Victor.
+- **Alternativas consideradas:** Yuri.
+- **Motivo:** Comunicativo e tem conhecimento de inglês.
 
-- **Decisão:**
-- **Alternativas consideradas:**
-- **Motivo:**
+## [24/11] — [Decisão da Linguagem]
+
+- **Decisão:** Linguagem Java com Spring.
+- **Alternativas consideradas:** Node.
+- **Motivo:** Todos integrantes são familiarizados com o java.
+
+## [24/11] — [Decisão do Front-end]
+
+- **Decisão:** HTML, CSS, JavaScript.
+- **Alternativas consideradas:** nenhuma.
+- **Motivo:** Facilidade, projeto não é tão massivo.
