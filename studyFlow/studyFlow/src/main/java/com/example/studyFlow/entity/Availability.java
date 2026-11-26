@@ -1,4 +1,3 @@
-
 package com.example.studyFlow.entity;
 
 import jakarta.persistence.*;
