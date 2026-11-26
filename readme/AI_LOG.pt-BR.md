@@ -49,3 +49,33 @@ Copiem o modelo abaixo sempre que precisarem de uma entrada nova.
 - **O que a IA gerou:** Proposta de organização do desenvolvimento, funcionalidades necessárias e etapas de implementação do sistema.
 - **O que o time aproveitou:** Os requisitos de funcionalidades, a orientação para integrar front-end e back-end e a organização do desenvolvimento por etapas.
 - **O que o time corrigiu ou rejeitou, e por quê:** Foi reforçada a necessidade de manter fielmente o design original do Figma, evitando alterações visuais desnecessárias e soluções técnicas excessivamente complexas.
+
+
+### [26/11] — [Orientação sobre ferramentas de IA para desenvolvimento]
+
+- **Prompt principal:** Solicitar orientação sobre como utilizar o ChatGPT Work e o Codex para acessar, analisar e auxiliar diretamente no desenvolvimento do projeto StudyFlow, utilizando o VS Code e o IntelliJ IDEA.
+- **O que a IA gerou:** Explicações sobre o funcionamento do Work, suas possibilidades de interação com arquivos e projetos, além de orientações para utilizar o Codex no ambiente de desenvolvimento.
+- **O que o time aproveitou:** As orientações para utilizar ferramentas de IA como apoio à análise do código, identificação de erros e implementação de melhorias.
+- **O que o time corrigiu ou rejeitou, e por quê:** A utilização do Codex apresentou um erro de incompatibilidade de modelo com a conta do ChatGPT. Por isso, foi considerada a alternativa de utilizar o VS Code com seus recursos de IA.
+
+### [26/11] — [Configuração do ambiente de desenvolvimento e Git]
+
+- **Prompt principal:** Solicitar ajuda para trabalhar com o projeto StudyFlow no VS Code, incluindo orientações para gerenciar branches pelo terminal.
+- **O que a IA gerou:** Instruções para identificar a branch atual, visualizar as branches disponíveis e realizar a troca de branch utilizando comandos Git.
+- **O que o time aproveitou:** As orientações para organizar o trabalho com Git e continuar o desenvolvimento na branch adequada.
+- **O que o time corrigiu ou rejeitou, e por quê:** Foi necessário adaptar o ambiente de desenvolvimento, considerando as dificuldades encontradas na utilização do IntelliJ IDEA e do Codex.
+
+
+### [26/11] — [Análise da estrutura e do estado atual do StudyFlow]
+
+- **Prompt principal:** Solicitar uma análise do projeto StudyFlow a partir do arquivo ZIP do repositório, sem depender do envio de capturas de tela, comparando sua estrutura com os requisitos do checklist do professor.
+- **O que a IA gerou:** Um levantamento da estrutura do projeto, identificando arquivos existentes, documentação, configuração do GitHub Actions, testes, organização do back-end e possíveis pendências.
+- **O que o time aproveitou:** A identificação dos pontos que precisam de atenção para preparar o projeto para a apresentação, principalmente a implementação do fluxo principal do MVP, os testes automatizados, a pipeline e a documentação.
+- **O que o time corrigiu ou rejeitou, e por quê:** A análise foi utilizada como diagnóstico, sem considerar itens parcialmente implementados como concluídos. Foi identificada a necessidade de verificar e atualizar arquivos de documentação e configurações que ainda não representam completamente o estado esperado do projeto.
+
+### [26/11] — [Planejamento das pendências para a apresentação do MVP]
+
+- **Prompt principal:** Solicitar a conferência do checklist do Dia 4 do Hack com IA, comparando as exigências do professor com o estado atual do projeto StudyFlow.
+- **O que a IA gerou:** Uma lista de prioridades dividida entre implementação do sistema, testes e pipeline, documentação, segurança e preparação da apresentação.
+- **O que o time aproveitou:** A organização das tarefas por prioridade, dando preferência à implementação de um fluxo funcional de ponta a ponta antes de investir em funcionalidades secundárias e melhorias visuais.
+- **O que o time corrigiu ou rejeitou, e por quê:**
