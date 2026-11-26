@@ -4,6 +4,11 @@
 # Pastas de compilação
 target/
 build/
+*.db
+*.db-shm
+*.db-wal
+.env.*
+!.env.example
 
 # Variáveis de ambiente
 .env

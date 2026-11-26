@@ -1,14 +1,19 @@
 package com.example.studyFlow.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.LocalTime;
 
 @Entity
-@Table(name = "availabilities")
+@Table(name = "availabilities", uniqueConstraints = @UniqueConstraint(
+        name = "uq_availability_day_interval", columnNames = {"day_of_week", "start_time", "end_time"}),
+        indexes = @Index(name = "idx_availability_day", columnList = "day_of_week"))
 public class Availability {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @JdbcTypeCode(SqlTypes.INTEGER)
     private Long id;
 
     // Dia da semana: 1 = segunda-feira até 7 = domingo

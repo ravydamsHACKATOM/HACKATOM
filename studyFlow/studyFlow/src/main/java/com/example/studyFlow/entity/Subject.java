@@ -2,13 +2,16 @@
 package com.example.studyFlow.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
-@Table(name = "subjects")
+@Table(name = "subjects", indexes = @Index(name = "idx_subject_name", columnList = "name"))
 public class Subject {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @JdbcTypeCode(SqlTypes.INTEGER)
     private Long id;
 
     @Column(nullable = false, length = 100)

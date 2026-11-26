@@ -2,14 +2,20 @@
 package com.example.studyFlow.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "study_events")
+@Table(name = "study_events", indexes = {
+        @Index(name = "idx_events_due_date", columnList = "due_date"),
+        @Index(name = "idx_events_subject_id", columnList = "subject_id")
+})
 public class StudyEvent {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @JdbcTypeCode(SqlTypes.INTEGER)
     private Long id;
 
     @Column(nullable = false, length = 150)
@@ -18,7 +24,7 @@ public class StudyEvent {
     @Column(nullable = false, length = 30)
     private String type;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "subject_id", nullable = false)
     private Subject subject;
 

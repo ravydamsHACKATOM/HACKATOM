@@ -2,24 +2,32 @@
 package com.example.studyFlow.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "study_blocks")
+@Table(name = "study_blocks", indexes = {
+        @Index(name = "idx_blocks_event_id", columnList = "event_id"),
+        @Index(name = "idx_blocks_start_at", columnList = "start_at")
+})
 public class StudyBlock {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @JdbcTypeCode(SqlTypes.INTEGER)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "event_id", nullable = false)
     private StudyEvent event;
 
     @Column(nullable = false)
+    @Convert(converter = LocalDateTimeConverter.class)
     private LocalDateTime startAt;
 
     @Column(nullable = false)
+    @Convert(converter = LocalDateTimeConverter.class)
     private LocalDateTime endAt;
 
     @Column(nullable = false)

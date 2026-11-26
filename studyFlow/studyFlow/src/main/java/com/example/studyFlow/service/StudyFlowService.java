@@ -1,506 +1,208 @@
-
 package com.example.studyFlow.service;
 
-import com.example.studyFlow.controller.StudyFlowController.SubjectDTO;
-import com.example.studyFlow.controller.StudyFlowController.EventDTO;
-import com.example.studyFlow.controller.StudyFlowController.AvailabilityDTO;
-import com.example.studyFlow.controller.StudyFlowController.StudyBlockDTO;
-
-import com.example.studyFlow.entity.Subject;
-import com.example.studyFlow.entity.StudyEvent;
-import com.example.studyFlow.entity.Availability;
-import com.example.studyFlow.entity.StudyBlock;
-
-import com.example.studyFlow.repository.SubjectRepository;
-import com.example.studyFlow.repository.StudyEventRepository;
-import com.example.studyFlow.repository.AvailabilityRepository;
-import com.example.studyFlow.repository.StudyBlockRepository;
-
-import org.springframework.http.HttpStatus;
+import com.example.studyFlow.dto.*;
+import com.example.studyFlow.entity.*;
+import com.example.studyFlow.exception.ConflictException;
+import com.example.studyFlow.exception.ResourceNotFoundException;
+import com.example.studyFlow.repository.*;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.time.DayOfWeek;
-import java.time.Duration;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.time.*;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
 public class StudyFlowService {
+    private static final Set<String> EVENT_TYPES = Set.of("PROVA", "ENTREGA");
+    private static final int SESSION_MINUTES = 50;
+    private static final int BREAK_MINUTES = 10;
 
-    private final SubjectRepository subjectRepository;
-    private final StudyEventRepository eventRepository;
-    private final AvailabilityRepository availabilityRepository;
-    private final StudyBlockRepository blockRepository;
+    private final SubjectRepository subjects;
+    private final StudyEventRepository events;
+    private final AvailabilityRepository availabilities;
+    private final StudyBlockRepository blocks;
 
-    public StudyFlowService(
-            SubjectRepository subjectRepository,
-            StudyEventRepository eventRepository,
-            AvailabilityRepository availabilityRepository,
-            StudyBlockRepository blockRepository
-    ) {
-        this.subjectRepository = subjectRepository;
-        this.eventRepository = eventRepository;
-        this.availabilityRepository = availabilityRepository;
-        this.blockRepository = blockRepository;
+    public StudyFlowService(SubjectRepository subjects, StudyEventRepository events,
+                            AvailabilityRepository availabilities, StudyBlockRepository blocks) {
+        this.subjects = subjects;
+        this.events = events;
+        this.availabilities = availabilities;
+        this.blocks = blocks;
     }
 
-    // =========================
-    // MATÉRIAS
-    // =========================
-
-    public List<SubjectDTO> getSubjects() {
-        return subjectRepository.findAll()
-                .stream()
-                .map(this::toSubjectDTO)
-                .toList();
+    public List<SubjectResponse> getSubjects() {
+        return subjects.findAll().stream().map(this::subjectResponse).toList();
     }
 
-    public SubjectDTO createSubject(SubjectDTO dto) {
-
-        if (dto.name() == null || dto.name().isBlank()) {
-            throw badRequest("O nome da matéria é obrigatório.");
-        }
-
-        Subject subject = new Subject(
-                dto.name(),
-                dto.color()
-        );
-
-        return toSubjectDTO(subjectRepository.save(subject));
+    public SubjectResponse createSubject(SubjectRequest request) {
+        Subject subject = new Subject(request.name().trim(), request.color());
+        return subjectResponse(subjects.save(subject));
     }
 
-    public SubjectDTO updateSubject(Long id, SubjectDTO dto) {
-
-        Subject subject = findSubject(id);
-
-        subject.setName(dto.name());
-        subject.setColor(dto.color());
-
-        return toSubjectDTO(subjectRepository.save(subject));
+    public SubjectResponse updateSubject(Long id, SubjectRequest request) {
+        Subject subject = subject(id);
+        subject.setName(request.name().trim());
+        subject.setColor(request.color());
+        return subjectResponse(subjects.save(subject));
     }
 
     public void deleteSubject(Long id) {
-
-        Subject subject = findSubject(id);
-
-        List<StudyEvent> events =
-                eventRepository.findBySubjectId(id);
-
-        for (StudyEvent event : events) {
-            List<StudyBlock> blocks =
-                    blockRepository.findByEventId(event.getId());
-
-            blockRepository.deleteAll(blocks);
-        }
-
-        eventRepository.deleteAll(events);
-        subjectRepository.delete(subject);
+        Subject subject = subject(id);
+        List<StudyEvent> related = events.findBySubjectId(id);
+        for (StudyEvent event : related) deleteEventData(event);
+        events.deleteAll(related);
+        subjects.delete(subject);
     }
 
-    private Subject findSubject(Long id) {
-        return subjectRepository.findById(id)
-                .orElseThrow(() -> notFound("Matéria não encontrada."));
+    public List<EventResponse> getEvents() {
+        return events.findAllByOrderByDueDateAsc().stream().map(this::eventResponse).toList();
     }
 
-    private SubjectDTO toSubjectDTO(Subject subject) {
-        return new SubjectDTO(
-                subject.getId(),
-                subject.getName(),
-                subject.getColor()
-        );
+    public EventResponse createEvent(EventRequest request) {
+        validateEvent(request);
+        Subject subject = subject(request.subjectId());
+        StudyEvent event = new StudyEvent(request.title().trim(), normalizeType(request.type()), subject,
+                request.dueDate(), request.estimatedHours());
+        return eventResponse(events.save(event));
     }
 
-    // =========================
-    // PROVAS E ENTREGAS
-    // =========================
-
-    public List<EventDTO> getEvents() {
-        return eventRepository.findAllByOrderByDueDateAsc()
-                .stream()
-                .map(this::toEventDTO)
-                .toList();
-    }
-
-    public EventDTO createEvent(EventDTO dto) {
-
-        validateEvent(dto);
-
-        Subject subject = findSubject(dto.subjectId());
-
-        StudyEvent event = new StudyEvent(
-                dto.title(),
-                dto.type(),
-                subject,
-                dto.dueDate(),
-                dto.estimatedHours()
-        );
-
-        return toEventDTO(eventRepository.save(event));
-    }
-
-    public EventDTO updateEvent(Long id, EventDTO dto) {
-
-        validateEvent(dto);
-
-        StudyEvent event = findEvent(id);
-        Subject subject = findSubject(dto.subjectId());
-
-        event.setTitle(dto.title());
-        event.setType(dto.type());
+    public EventResponse updateEvent(Long id, EventRequest request) {
+        validateEvent(request);
+        StudyEvent event = event(id);
+        Subject subject = subject(request.subjectId());
+        event.setTitle(request.title().trim());
+        event.setType(normalizeType(request.type()));
         event.setSubject(subject);
-        event.setDueDate(dto.dueDate());
-        event.setEstimatedHours(dto.estimatedHours());
-
-        // Remove somente os blocos pendentes.
-        List<StudyBlock> blocks =
-                blockRepository.findByEventId(id);
-
-        blockRepository.deleteAll(
-                blocks.stream()
-                        .filter(block -> !Boolean.TRUE.equals(block.getCompleted()))
-                        .toList()
-        );
-
-        return toEventDTO(eventRepository.save(event));
+        event.setDueDate(request.dueDate());
+        event.setEstimatedHours(request.estimatedHours());
+        blocks.deleteAll(blocks.findByEventId(id).stream().filter(b -> !b.getCompleted()).toList());
+        return eventResponse(events.save(event));
     }
 
     public void deleteEvent(Long id) {
-
-        StudyEvent event = findEvent(id);
-
-        List<StudyBlock> blocks =
-                blockRepository.findByEventId(id);
-
-        blockRepository.deleteAll(blocks);
-        eventRepository.delete(event);
+        StudyEvent event = event(id);
+        deleteEventData(event);
+        events.delete(event);
     }
 
-    private StudyEvent findEvent(Long id) {
-        return eventRepository.findById(id)
-                .orElseThrow(() -> notFound("Evento não encontrado."));
-    }
-
-    private EventDTO toEventDTO(StudyEvent event) {
-        return new EventDTO(
-                event.getId(),
-                event.getTitle(),
-                event.getType(),
-                event.getSubject().getId(),
-                event.getDueDate(),
-                event.getEstimatedHours()
-        );
-    }
-
-    private void validateEvent(EventDTO dto) {
-
-        if (dto.title() == null || dto.title().isBlank()) {
-            throw badRequest("O título é obrigatório.");
+    public List<AvailabilityResponse> getAvailability() {
+        Map<String, List<Integer>> daysByInterval = new LinkedHashMap<>();
+        Map<String, Availability> intervalData = new HashMap<>();
+        for (Availability availability : availabilities.findAllByOrderByDayOfWeekAsc()) {
+            String key = availability.getStartTime() + "|" + availability.getEndTime();
+            daysByInterval.computeIfAbsent(key, ignored -> new ArrayList<>()).add(availability.getDayOfWeek());
+            intervalData.putIfAbsent(key, availability);
         }
-
-        if (dto.type() == null || dto.type().isBlank()) {
-            throw badRequest("Informe o tipo do evento.");
-        }
-
-        if (dto.subjectId() == null) {
-            throw badRequest("Selecione uma matéria.");
-        }
-
-        if (dto.dueDate() == null ||
-                dto.dueDate().isBefore(LocalDate.now())) {
-            throw badRequest("Informe uma data válida.");
-        }
-
-        if (dto.estimatedHours() == null ||
-                dto.estimatedHours() <= 0) {
-            throw badRequest("A estimativa deve ser maior que zero.");
-        }
+        return daysByInterval.entrySet().stream().map(entry -> {
+            Availability sample = intervalData.get(entry.getKey());
+            return new AvailabilityResponse(entry.getValue(), sample.getStartTime(), sample.getEndTime());
+        }).toList();
     }
 
-    // =========================
-    // DISPONIBILIDADE
-    // =========================
-
-    public List<AvailabilityDTO> getAvailability() {
-
-        List<Availability> all =
-                availabilityRepository.findAllByOrderByDayOfWeekAsc();
-
-        List<AvailabilityDTO> result = new ArrayList<>();
-
-        for (Availability availability : all) {
-            result.add(new AvailabilityDTO(
-                    availability.getId(),
-                    List.of(availability.getDayOfWeek()),
-                    availability.getStartTime(),
-                    availability.getEndTime()
-            ));
-        }
-
-        return result;
+    /** Replaces the full weekly configuration. A day can occur only once in this MVP. */
+    public List<AvailabilityResponse> replaceAvailability(AvailabilityRequest request) {
+        validateAvailability(request);
+        availabilities.deleteAllInBatch();
+        request.daysOfWeek().stream().distinct().sorted().forEach(day ->
+                availabilities.save(new Availability(day, request.startTime(), request.endTime())));
+        return getAvailability();
     }
 
-    public AvailabilityDTO createAvailability(AvailabilityDTO dto) {
+    public void clearAvailability() { availabilities.deleteAllInBatch(); }
 
-        validateAvailability(dto);
-
-        List<Availability> saved = new ArrayList<>();
-
-        for (Integer day : dto.daysOfWeek()) {
-            Availability availability = new Availability(
-                    day,
-                    dto.startTime(),
-                    dto.endTime()
-            );
-
-            saved.add(availabilityRepository.save(availability));
-        }
-
-        return new AvailabilityDTO(
-                saved.get(0).getId(),
-                dto.daysOfWeek(),
-                dto.startTime(),
-                dto.endTime()
-        );
+    public List<BlockResponse> getStudyBlocks() {
+        return blocks.findAllByOrderByStartAtAsc().stream().map(this::blockResponse).toList();
     }
 
-    public AvailabilityDTO updateAvailability(
-            Long id,
-            AvailabilityDTO dto
-    ) {
+    public ScheduleResponse generateSchedule() {
+        List<StudyBlock> allBlocks = blocks.findAllByOrderByStartAtAsc();
+        List<StudyBlock> completed = allBlocks.stream().filter(StudyBlock::getCompleted).collect(Collectors.toCollection(ArrayList::new));
+        blocks.deleteAllInBatch(allBlocks.stream().filter(b -> !b.getCompleted()).toList());
+        allBlocks.clear();
+        allBlocks.addAll(completed);
+        List<StudyEvent> orderedEvents = events.findAllByOrderByDueDateAsc();
+        List<Availability> weekly = availabilities.findAllByOrderByDayOfWeekAsc();
+        Map<Long, Long> completedMinutes = completed.stream().collect(Collectors.groupingBy(
+                b -> b.getEvent().getId(), Collectors.summingLong(b -> Duration.between(b.getStartAt(), b.getEndAt()).toMinutes())));
+        List<String> warnings = new ArrayList<>();
+        LocalDate today = LocalDate.now();
 
-        validateAvailability(dto);
-
-        Availability original = findAvailability(id);
-
-        List<Availability> related =
-                availabilityRepository.findAll().stream()
-                        .filter(a ->
-                                a.getStartTime().equals(original.getStartTime())
-                                && a.getEndTime().equals(original.getEndTime()))
-                        .toList();
-
-        availabilityRepository.deleteAll(related);
-
-        return createAvailability(dto);
-    }
-
-    public void deleteAvailability(Long id) {
-
-        Availability original = findAvailability(id);
-
-        List<Availability> related =
-                availabilityRepository.findAll().stream()
-                        .filter(a ->
-                                a.getStartTime().equals(original.getStartTime())
-                                && a.getEndTime().equals(original.getEndTime()))
-                        .toList();
-
-        availabilityRepository.deleteAll(related);
-    }
-
-    private Availability findAvailability(Long id) {
-        return availabilityRepository.findById(id)
-                .orElseThrow(() ->
-                        notFound("Disponibilidade não encontrada."));
-    }
-
-    private void validateAvailability(AvailabilityDTO dto) {
-
-        if (dto.daysOfWeek() == null ||
-                dto.daysOfWeek().isEmpty()) {
-            throw badRequest("Selecione pelo menos um dia.");
-        }
-
-        if (dto.startTime() == null ||
-                dto.endTime() == null ||
-                !dto.startTime().isBefore(dto.endTime())) {
-            throw badRequest("Informe horários válidos.");
-        }
-
-        boolean invalidDay = dto.daysOfWeek().stream()
-                .anyMatch(day -> day == null || day < 1 || day > 7);
-
-        if (invalidDay) {
-            throw badRequest("Os dias devem estar entre 1 e 7.");
-        }
-    }
-
-    // =========================
-    // BLOCOS DE ESTUDO
-    // =========================
-
-    public List<StudyBlockDTO> getStudyBlocks() {
-        return blockRepository.findAllByOrderByStartAtAsc()
-                .stream()
-                .map(this::toBlockDTO)
-                .toList();
-    }
-
-    public List<StudyBlockDTO> generateSchedule() {
-
-        // Mantém os blocos concluídos e remove os pendentes antigos.
-        List<StudyBlock> pending =
-                blockRepository.findByCompleted(false);
-
-        blockRepository.deleteAll(pending);
-
-        List<StudyEvent> events =
-                eventRepository.findAllByOrderByDueDateAsc();
-
-        List<Availability> availabilities =
-                availabilityRepository.findAllByOrderByDayOfWeekAsc();
-
-        for (StudyEvent event : events) {
-
-            long completedMinutes =
-                    blockRepository.findByEventId(event.getId())
-                            .stream()
-                            .filter(block ->
-                                    Boolean.TRUE.equals(block.getCompleted()))
-                            .mapToLong(block ->
-                                    Duration.between(
-                                            block.getStartAt(),
-                                            block.getEndAt()
-                                    ).toMinutes())
-                            .sum();
-
-            long totalMinutes =
-                    (long) (event.getEstimatedHours() * 60);
-
-            long remaining = totalMinutes - completedMinutes;
-
-            if (remaining <= 0) {
+        for (StudyEvent event : orderedEvents) {
+            long required = Math.round(event.getEstimatedHours() * 60.0);
+            long remaining = Math.max(0, required - completedMinutes.getOrDefault(event.getId(), 0L));
+            if (remaining == 0) continue;
+            if (!event.getDueDate().isAfter(today)) {
+                warnings.add(event.getTitle() + ": o prazo é hoje ou já passou; não há dias disponíveis antes do prazo.");
                 continue;
             }
-
-            LocalDate today = LocalDate.now();
-
-            for (LocalDate date = today;
-                 date.isBefore(event.getDueDate()) && remaining > 0;
-                 date = date.plusDays(1)) {
-
-                int day = date.getDayOfWeek().getValue();
-
-                for (Availability availability : availabilities) {
-
-                    if (availability.getDayOfWeek() != day) {
-                        continue;
-                    }
-
+            for (LocalDate date = today; date.isBefore(event.getDueDate()) && remaining > 0; date = date.plusDays(1)) {
+                final int isoDay = date.getDayOfWeek().getValue();
+                for (Availability availability : weekly) {
+                    if (availability.getDayOfWeek() != isoDay || remaining <= 0) continue;
                     LocalTime start = availability.getStartTime();
                     LocalTime end = availability.getEndTime();
-
-                    while (!start.plusMinutes(50).isAfter(end)
-                            && remaining > 0) {
-
-                        LocalDateTime startAt =
-                                LocalDateTime.of(date, start);
-
-                        LocalDateTime endAt =
-                                startAt.plusMinutes(50);
-
-                        if (!hasConflict(startAt, endAt)) {
-
-                            StudyBlock block = new StudyBlock(
-                                    event,
-                                    startAt,
-                                    endAt,
-                                    false
-                            );
-
-                            blockRepository.save(block);
-                            remaining -= 50;
+                    while (start.isBefore(end) && remaining > 0) {
+                        if (date.equals(today) && !start.isAfter(LocalTime.now())) {
+                            start = start.plusMinutes(BREAK_MINUTES);
+                            continue;
                         }
-
-                        // Sessão de 50 minutos + intervalo de 10 minutos.
-                        start = start.plusMinutes(60);
+                        int duration = (int) Math.min(SESSION_MINUTES, remaining);
+                        LocalTime finish = start.plusMinutes(duration);
+                        if (finish.isAfter(end)) break;
+                        LocalDateTime startAt = LocalDateTime.of(date, start);
+                        LocalDateTime endAt = LocalDateTime.of(date, finish);
+                        if (hasConflict(startAt, endAt, allBlocks)) {
+                            start = start.plusMinutes(BREAK_MINUTES);
+                            continue;
+                        }
+                        StudyBlock block = blocks.save(new StudyBlock(event, startAt, endAt, false));
+                        allBlocks.add(block);
+                        remaining -= duration;
+                        start = start.plusMinutes(duration == SESSION_MINUTES ? SESSION_MINUTES + BREAK_MINUTES : duration);
                     }
                 }
             }
+            if (remaining > 0) warnings.add(event.getTitle() + ": " + formatHours(remaining) + "h não puderam ser distribuídas antes do prazo.");
         }
-
-        return getStudyBlocks();
+        return new ScheduleResponse(getStudyBlocks(), warnings);
     }
 
-    private boolean hasConflict(
-            LocalDateTime startAt,
-            LocalDateTime endAt
-    ) {
-
-        return blockRepository.findAll().stream()
-                .anyMatch(block ->
-                        startAt.isBefore(block.getEndAt())
-                        && endAt.isAfter(block.getStartAt())
-                );
+    public BlockResponse setCompletion(Long id, boolean completed) {
+        StudyBlock block = blocks.findById(id).orElseThrow(() -> new ResourceNotFoundException("Bloco de estudo não encontrado."));
+        block.setCompleted(completed);
+        return blockResponse(blocks.save(block));
     }
 
-    private StudyBlockDTO toBlockDTO(StudyBlock block) {
-        return new StudyBlockDTO(
-                block.getId(),
-                block.getEvent().getId(),
-                block.getEvent().getTitle(),
-                block.getStartAt(),
-                block.getEndAt(),
-                block.getCompleted()
-        );
-    }
-
-    // =========================
-    // CONCLUIR BLOCO
-    // =========================
-
-    public StudyBlockDTO completeStudyBlock(Long id) {
-
-        StudyBlock block = blockRepository.findById(id)
-                .orElseThrow(() ->
-                        notFound("Bloco de estudo não encontrado."));
-
-        block.setCompleted(true);
-
-        return toBlockDTO(blockRepository.save(block));
-    }
-
-    // =========================
-    // TAREFAS DE HOJE
-    // =========================
-
-    public List<StudyBlockDTO> getTodayTasks() {
-
+    public List<BlockResponse> getTodayTasks() {
         LocalDateTime start = LocalDate.now().atStartOfDay();
-        LocalDateTime end = start.plusDays(1);
-
-        return blockRepository.findByStartAtBetween(
-                        start,
-                        end.minusNanos(1)
-                )
-                .stream()
-                .sorted(Comparator.comparing(StudyBlock::getStartAt))
-                .map(this::toBlockDTO)
-                .toList();
+        return blocks.findByStartAtBetween(start, start.plusDays(1).minusNanos(1)).stream()
+                .sorted(Comparator.comparing(StudyBlock::getStartAt)).map(this::blockResponse).toList();
     }
 
-    // =========================
-    // RESPOSTAS DE ERRO
-    // =========================
-
-    private ResponseStatusException notFound(String message) {
-        return new ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                message
-        );
+    private void validateEvent(EventRequest request) {
+        if (!EVENT_TYPES.contains(normalizeType(request.type()))) throw new IllegalArgumentException("Tipo de evento inválido.");
+        if (request.dueDate().isBefore(LocalDate.now())) throw new IllegalArgumentException("O prazo não pode estar no passado.");
+        if (request.estimatedHours() > 100) throw new IllegalArgumentException("A estimativa máxima é 100 horas.");
     }
 
-    private ResponseStatusException badRequest(String message) {
-        return new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                message
-        );
+    private void validateAvailability(AvailabilityRequest request) {
+        if (request.daysOfWeek().stream().anyMatch(day -> day < 1 || day > 7)) throw new IllegalArgumentException("Os dias devem usar ISO: 1 (segunda) até 7 (domingo).");
+        if (!request.startTime().isBefore(request.endTime())) throw new IllegalArgumentException("O horário inicial deve ser anterior ao final.");
+        if (request.daysOfWeek().stream().distinct().count() != request.daysOfWeek().size()) throw new ConflictException("Um dia da semana foi selecionado mais de uma vez.");
     }
+
+    private boolean hasConflict(LocalDateTime start, LocalDateTime end, List<StudyBlock> existing) {
+        return existing.stream().anyMatch(block -> start.isBefore(block.getEndAt()) && end.isAfter(block.getStartAt()));
+    }
+
+    private void deleteEventData(StudyEvent event) { blocks.deleteAll(blocks.findByEventId(event.getId())); }
+    private Subject subject(Long id) { return subjects.findById(id).orElseThrow(() -> new ResourceNotFoundException("Matéria não encontrada.")); }
+    private StudyEvent event(Long id) { return events.findById(id).orElseThrow(() -> new ResourceNotFoundException("Evento não encontrado.")); }
+    private String normalizeType(String type) { return type == null ? "" : type.trim().toUpperCase(Locale.ROOT); }
+    private String formatHours(long minutes) { return String.format(Locale.ROOT, "%.1f", minutes / 60.0); }
+    private SubjectResponse subjectResponse(Subject value) { return new SubjectResponse(value.getId(), value.getName(), value.getColor()); }
+    private EventResponse eventResponse(StudyEvent value) { return new EventResponse(value.getId(), value.getTitle(), value.getType(), value.getSubject().getId(), value.getDueDate(), value.getEstimatedHours()); }
+    private BlockResponse blockResponse(StudyBlock value) { return new BlockResponse(value.getId(), value.getEvent().getId(), value.getEvent().getTitle(), value.getStartAt(), value.getEndAt(), Boolean.TRUE.equals(value.getCompleted())); }
 }
