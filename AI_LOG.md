@@ -15,8 +15,6 @@ variables and in GitHub Secrets.
 - **Codex**: attempted in the development environment (it did not work with our account).
 - **Claude Code**: rebuild of the application on 27/11 (code, tests, CI and documentation).
 - **Z-Image Turbo on ComfyUI**, running locally: illustrations, icons and paper textures.
-- **Claude through the Anthropic API**: inside the product, to explain the generated plan
-  (optional).
 
 ## Log
 
@@ -102,7 +100,7 @@ variables and in GitHub Secrets.
 - **Main prompt:** rebuild the back-end in Java 21 and Spring Boot covering the six requirements
   of the briefing, with AI helping to propose and to rebuild the plan.
 - **What the AI generated:** the REST API (disciplines, exams and assignments, free hours, plan),
-  the scheduler in plain Java, the Flyway schema and 35 automated tests.
+  the scheduler in plain Java, the Flyway schema and 35 automated tests (44 after accounts were added).
 - **What the team kept:** the split between the deterministic scheduler and the AI explanation,
   and the scheduling rules (earliest deadline first, 50-minute sessions, review before the exam,
   a warning when the effort does not fit).
@@ -111,7 +109,7 @@ variables and in GitHub Secrets.
   summary was built before the plan was marked as generated; the bug was fixed. Code formatting
   is now enforced by the build (Spotless) so it does not depend on manual review.
 
-### 27/11/2026 — AI inside the product: plan explanation (Claude Code + Anthropic API)
+### 27/11/2026 — AI inside the product: plan explanation (tried and removed)
 
 - **Main prompt (system instruction of the product, written in Portuguese):** "You are the study
   advisor of StudyFlow. You receive, as JSON, the facts of a weekly plan already computed by an
@@ -124,8 +122,9 @@ variables and in GitHub Secrets.
 - **What the team corrected or rejected, and why:** we rejected letting the AI build the
   schedule, because it could place blocks outside the free hours and that cannot be tested. We
   also rejected making the AI mandatory: without a key or on failure a rule-based advisor answers,
-  and the interface shows where the text came from ("Escrito por IA" or "Regras automáticas"). The
-  integration with the real API still has to be exercised with a team key before the demo.
+  and the interface showed where the text came from. Later the same day we removed the
+  integration altogether: the product should not depend on a paid key, and the rule-based
+  explanation covered the same ground. The integration was never exercised against the real API.
 
 ### 27/11/2026 — Interface (Claude Code)
 
@@ -169,3 +168,34 @@ variables and in GitHub Secrets.
   its own configuration in the pipeline; it is now installed as a repository dependency. One old
   commit in the history fails the rule and cannot be reworded without rewriting shared history,
   so it is listed as an exception, with the reason in the configuration file.
+
+### 27/11/2026 — Accounts, sign-in and data per user (Claude Code)
+
+- **Main prompt:** "Create a sign-up and sign-in system. No AI integration (API key) is needed."
+- **What the AI generated:** users and sessions tables, BCrypt password hashing, a session cookie,
+  an interceptor that guards the API, the owner filter in every query, nine API tests and the
+  sign-in card on the landing page.
+- **What the team kept:** the session in an HttpOnly cookie with only its digest stored, the same
+  answer for a wrong password and an unknown email, and the test proving that one account cannot
+  read or change another's data.
+- **What the team corrected or rejected, and why:** we rejected the full Spring Security framework
+  in favor of its password module plus a small interceptor the team can explain. The first
+  pipeline run on GitHub failed for reasons that did not show up on our Windows machines: files
+  committed with Windows line endings failed the format check on Linux, and the front-end test
+  command only worked on a newer Node. Both were fixed with a `.gitattributes` file and a glob in
+  the test command, and verified on Node 22.
+
+### 27/11/2026 — Dialogs and the custom select (Claude Code)
+
+- **Main prompt:** "Improve every modal and select so they look premium and subtly animated. The
+  select must show the discipline icon. Use icons and a frame for each card, nothing plain."
+- **What the AI generated:** a new dialog layout made of framed panels, choice cards for the
+  type, the weight and the weekdays, a stepper with quick picks for the hours, and a custom
+  select with icons, keyboard support and screen-reader roles.
+- **What the team kept:** the layout, the live hints ("in 7 days", "about 3 sessions") and adding
+  the same free hour to several days at once.
+- **What the team corrected or rejected, and why:** in the browser the list of the select closed
+  itself right after opening, because scrolling the active option into view also scrolled the
+  dialog, which the select treated as a reason to close. Then the list appeared out of place,
+  because visual effects on the dialog changed what "fixed position" is measured from. The list
+  is now scrolled by hand and moved to the end of the page while open.

@@ -49,11 +49,11 @@ decisões da apresentação.
 
 - **Decisão:** entregar os seis requisitos do briefing (cadastro, disponibilidade, geração,
   visualização, conclusão e ajuste, "o que fazer hoje") mais a explicação do plano, e nada além.
-- **Ficou de fora:** contas e login, integração com o sistema acadêmico, notificações, importação
-  de dados e sessões de estudo em grupo.
-- **Motivo:** o briefing coloca os dois primeiros fora de escopo, e os outros não mudam o fluxo
-  principal. Um estudante em um computador basta para demonstrar o produto; o nome pedido na
-  primeira tela só personaliza a saudação e fica guardado no navegador.
+- **Ficou de fora:** integração com o sistema acadêmico, notificações, importação de dados e
+  sessões de estudo em grupo.
+- **Motivo:** o briefing coloca o primeiro fora de escopo, e os outros não mudam o fluxo
+  principal. As contas também ficaram de fora no início e entraram mais tarde no mesmo dia (veja
+  abaixo).
 
 ## 27/11/2026 — O agendador é determinístico; a IA só explica
 
@@ -95,7 +95,7 @@ decisões da apresentação.
   que sejam movidos, pode corrigir um plano otimista adiando, e nunca perde o que já fez quando um
   prazo muda. A interface lista o que mudou depois de cada ajuste.
 
-## 27/11/2026 — Provedor de IA e plano B
+## 27/11/2026 — Provedor de IA e plano B (substituída)
 
 - **Decisão:** Claude (Anthropic) pelo SDK oficial para Java, com saída estruturada. A chave vem
   só da variável de ambiente `ANTHROPIC_API_KEY`. Sem chave, ou em qualquer falha, responde um
@@ -103,6 +103,7 @@ decisões da apresentação.
 - **Alternativas consideradas:** tornar a IA obrigatória; chamar a API HTTP manualmente.
 - **Motivo:** a demo não pode depender de rede nem de cota, e a pipeline precisa rodar sem
   segredos. O SDK oficial dá requisições tipadas e um formato de resposta validado.
+- **Situação:** substituída por "Sem serviço pago de IA no produto", abaixo.
 
 ## 27/11/2026 — SQLite com SQL explícito e Flyway
 
@@ -137,3 +138,40 @@ decisões da apresentação.
 - **Alternativas consideradas:** confiar na revisão para pegar mensagens ruins.
 - **Motivo:** os primeiros dias do histórico tinham mensagens como "updating file". Uma checagem
   automática não custa nada e mantém o histórico legível para a banca técnica.
+
+## 27/11/2026 — Contas com cadastro e login
+
+- **Decisão:** adicionar contas. As senhas são guardadas como hash BCrypt. A sessão é um token
+  aleatório em um cookie HttpOnly e SameSite=Lax, e o banco guarda só o resumo SHA-256 dele. Toda
+  tabela pertence a um dono, e toda consulta filtra por ele.
+- **Alternativas consideradas:** manter a versão de um único estudante; JWT no armazenamento
+  local do navegador; o framework Spring Security completo.
+- **Motivo:** um planejador guarda dados pessoais de rotina, e com contas vários estudantes podem
+  usar a mesma instalação, inclusive na demo. Um cookie que os scripts da página não conseguem ler
+  é mais seguro do que um token no armazenamento local, e uma sessão no servidor pode ser
+  encerrada no logout. Usamos só o módulo de hash de senhas do Spring Security e escrevemos um
+  interceptador pequeno, que o time inteiro consegue ler e explicar, em vez de configurar o
+  framework completo.
+- **Ficou de fora:** recuperação de senha por e-mail e limite de tentativas de login, que pedem
+  infraestrutura fora do MVP.
+
+## 27/11/2026 — Sem serviço pago de IA no produto
+
+- **Decisão:** retirar a explicação escrita por um modelo de linguagem e a chave de API dela. O
+  plano é explicado só pelo orientador por regras.
+- **Alternativas consideradas:** manter a integração opcional com o plano B.
+- **Motivo:** o produto não pode depender de uma chave paga que o time teria de administrar e
+  proteger, e a explicação por regras já respondia às mesmas perguntas nos nossos testes. A IA
+  continua no processo (código, testes, imagens, documentação), documentada no registro de IA. A
+  decisão anterior de que a IA nunca decide o cronograma fez dessa retirada uma mudança pequena:
+  só a camada de explicação foi afetada.
+
+## 27/11/2026 — Modais em cartões e select próprio
+
+- **Decisão:** refazer todos os modais como um conjunto de painéis com cartões de escolha, um
+  contador e atalhos de preenchimento, e trocar o select nativo por um próprio, que mostra o ícone
+  e a cor da disciplina.
+- **Alternativas consideradas:** manter os controles nativos com um estilo leve.
+- **Motivo:** o select nativo não mostra ícones e muda de aparência em cada sistema. O nosso
+  mantém o que torna um controle nativo usável: um valor real de formulário, uso completo pelo
+  teclado (setas, Enter, Esc, digitar para buscar) e os papéis de listbox para leitores de tela.

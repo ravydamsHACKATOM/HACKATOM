@@ -52,18 +52,20 @@ as janelas da semana em que pode estudar. A partir disso, o StudyFlow:
 
 ### Onde a IA entra
 
-- **No produto:** cada plano gerado vem com uma explicação escrita pelo Claude (Anthropic) a
-  partir dos fatos calculados pelo agendador. O modelo nunca decide o cronograma, então um bloco
-  nunca cai fora da disponibilidade real do estudante. Sem chave de API, ou se o provedor falhar,
-  um orientador por regras responde no lugar e o app continua funcionando.
 - **No processo:** código, testes, imagens e documentação foram produzidos com apoio de IA e
-  revisados pelo time. Tudo está registrado no [AI_LOG.pt-BR.md](AI_LOG.pt-BR.md).
+  revisados pelo time. As ilustrações, os ícones e as texturas de papel foram gerados com um
+  modelo de imagem rodando no nosso próprio notebook. Tudo está registrado no
+  [AI_LOG.pt-BR.md](AI_LOG.pt-BR.md).
+- **No produto:** o plano é montado e explicado por regras fixas, sem serviço pago de IA por trás,
+  então o app funciona offline e não precisa de chave de API. Testamos uma explicação escrita por
+  um modelo de linguagem e retiramos; os motivos estão no [DECISIONS.pt-BR.md](DECISIONS.pt-BR.md).
 
 ### Recorte do MVP
 
-Entra: os seis pontos acima, temas claro e escuro, layout responsivo e uma semana de exemplo que
-pode ser carregada com um clique. Fica de fora, de propósito: contas e login, integração com o
-sistema acadêmico, notificações, sessões de estudo em grupo e importação de dados. Os motivos
+Entra: os seis pontos acima, contas com cadastro e login (cada estudante vê só os próprios
+dados), temas claro e escuro, layout responsivo e uma semana de exemplo que pode ser carregada
+com um clique. Fica de fora, de propósito: integração com o sistema acadêmico, notificações,
+sessões de estudo em grupo, importação de dados e recuperação de senha por e-mail. Os motivos
 estão no [DECISIONS.pt-BR.md](DECISIONS.pt-BR.md).
 
 ## Stack
@@ -71,8 +73,8 @@ estão no [DECISIONS.pt-BR.md](DECISIONS.pt-BR.md).
 | Camada | Tecnologia |
 | --- | --- |
 | Back-end | Java 21, Spring Boot 3.5 (Web, Validation, JDBC) |
+| Contas | Senhas com hash BCrypt, sessões no servidor em cookie HttpOnly |
 | Banco de dados | SQLite, com migrações Flyway |
-| IA | Claude pelo SDK oficial da Anthropic para Java (opcional) |
 | Front-end | HTML, CSS e módulos JavaScript, sem etapa de build |
 | Testes | JUnit 5, AssertJ, MockMvc; test runner do Node no front-end |
 | Lint | Spotless (google-java-format), ESLint, Prettier, commitlint |
@@ -88,17 +90,18 @@ estão no [DECISIONS.pt-BR.md](DECISIONS.pt-BR.md).
 ├── AGENTS.md                  convenções para pessoas e agentes de IA que trabalham aqui
 ├── backend/                   aplicação Spring Boot
 │   └── src/main/java/com/studyflow/
+│       ├── auth/              contas, sessões e a proteção da API
 │       ├── discipline/        disciplinas (CRUD)
 │       ├── event/             provas e entregas (CRUD)
 │       ├── availability/      horários livres da semana (CRUD)
 │       ├── plan/              plano semanal: serviço, endpoints, persistência
 │       │   └── engine/        o agendador, em Java puro, sem framework
-│       ├── advisor/           explicação do plano: Claude e orientador por regras
+│       ├── advisor/           explicação do plano, escrita por regras fixas
 │       └── common/            erros, relógio, health check
 ├── frontend/                  interface estática servida pelo back-end
 │   ├── index.html
 │   ├── styles/                tokens de design, base, componentes, telas
-│   ├── js/                    cliente da API, templates, um módulo por tela
+│   ├── js/                    cliente da API, templates, controles de formulário, um módulo por tela
 │   ├── assets/                ilustrações, ícones e texturas de papel
 │   └── tests/                 testes unitários dos formatadores
 ├── docs/                      briefing original do hackathon
@@ -123,23 +126,13 @@ cd backend
 ```
 
 Abra <http://localhost:8080>. O banco é criado em `backend/data/studyflow.db`.
-Na primeira tela, digite um nome e escolha **"Preencher com um exemplo"** para carregar uma semana
-de demonstração.
-
-### Ligando o orientador com IA (opcional)
-
-```bash
-export ANTHROPIC_API_KEY=...   # nunca commitem este valor
-./mvnw spring-boot:run
-```
-
-O `.env.example` lista todas as configurações. Sem a chave, o orientador usa regras
-embutidas e a interface mostra "Regras automáticas" em vez de "Escrito por IA".
+Crie uma conta na primeira tela e escolha **"Preencher com um exemplo"** para carregar uma semana
+de demonstração. O `.env.example` lista as configurações opcionais.
 
 ### Testes e lint
 
 ```bash
-cd backend && ./mvnw verify          # compila, 35 testes, checagem de formato, jar
+cd backend && ./mvnw verify          # compila, 44 testes, checagem de formato, jar
 cd frontend && npm ci && npm run lint && npm test
 ```
 
@@ -149,6 +142,8 @@ cd frontend && npm ci && npm run lint && npm test
 
 | Método | Endpoint | Para que serve |
 | --- | --- | --- |
+| POST | `/api/auth/register`, `/api/auth/login`, `/api/auth/logout` | Cadastro, login e logout |
+| GET | `/api/auth/me` | O estudante logado |
 | GET, POST, PUT, DELETE | `/api/disciplines` | Disciplinas |
 | GET, POST, PUT, DELETE | `/api/events` | Provas e entregas, com progresso |
 | GET, POST, PUT, DELETE | `/api/availability` | Horários livres da semana |
@@ -158,6 +153,8 @@ cd frontend && npm ci && npm run lint && npm test
 | PATCH | `/api/blocks/{id}/locked` | Trava um bloco no horário |
 | POST | `/api/blocks/{id}/postpone` | Adia um bloco e refaz a semana |
 | GET | `/api/health` | Health check |
+
+Todas as rotas, menos as três de autenticação acima e o health check, exigem sessão.
 
 ## CI/CD
 

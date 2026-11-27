@@ -49,11 +49,10 @@ decisions segment of the presentation.
 
 - **Decision:** deliver the six requirements of the briefing (register, availability, generate,
   view, complete and adjust, "what to do today") plus the plan explanation, and nothing else.
-- **Left out:** accounts and login, integration with the school system, notifications, data
-  import and group study sessions.
-- **Rationale:** the briefing lists the first two as out of scope, and the others do not change
-  the main flow. A single student on one computer is enough to demonstrate the product; the name
-  asked on the first screen only personalizes the greeting and is stored in the browser.
+- **Left out:** integration with the school system, notifications, data import and group study
+  sessions.
+- **Rationale:** the briefing lists the first as out of scope, and the others do not change the
+  main flow. Accounts were first left out as well and added later the same day (see below).
 
 ## 27/11/2026 — The scheduler is deterministic; the AI only explains
 
@@ -94,7 +93,7 @@ decisions segment of the presentation.
   do not want moved, can correct an optimistic plan by postponing, and never loses what was
   already done when a deadline changes. The interface lists what moved after each rebuild.
 
-## 27/11/2026 — AI provider and fallback
+## 27/11/2026 — AI provider and fallback (superseded)
 
 - **Decision:** Claude (Anthropic) through the official Java SDK, with a structured output. The
   key comes only from the `ANTHROPIC_API_KEY` environment variable. Without a key, or on any
@@ -102,6 +101,7 @@ decisions segment of the presentation.
 - **Alternatives considered:** making the AI mandatory; calling the HTTP API by hand.
 - **Rationale:** the demo cannot depend on network or quota, and the pipeline must run without
   secrets. The official SDK gives typed requests and a validated answer format.
+- **Status:** replaced by "No paid AI service in the product" below.
 
 ## 27/11/2026 — SQLite with plain SQL and Flyway
 
@@ -135,3 +135,39 @@ decisions segment of the presentation.
 - **Alternatives considered:** relying on review to catch bad messages.
 - **Rationale:** the first days of the history had messages such as "updating file". An automatic
   check costs nothing and keeps the history readable for the technical jury.
+
+## 27/11/2026 — Accounts with sign-up and sign-in
+
+- **Decision:** add accounts. Passwords are stored as BCrypt hashes. A session is a random token
+  in an HttpOnly, SameSite=Lax cookie, and the database stores only its SHA-256 digest. Every
+  table is scoped to its owner and every query filters by it.
+- **Alternatives considered:** keeping the single-student version; JWT in the browser's local
+  storage; the full Spring Security framework.
+- **Rationale:** a planner holds personal routine data, and with accounts several students can use
+  the same installation, including during the demo. A cookie the page's scripts cannot read is
+  safer than a token in local storage, and a server-side session can be ended on sign-out. We
+  used only the password-hashing module of Spring Security and wrote a small interceptor, which
+  the whole team can read and explain, instead of configuring the full framework.
+- **Left out:** password recovery by email and rate limiting of sign-in attempts, which need
+  infrastructure outside the MVP.
+
+## 27/11/2026 — No paid AI service in the product
+
+- **Decision:** remove the explanation written by a language model and its API key. The plan is
+  explained by the rule-based advisor only.
+- **Alternatives considered:** keeping the optional integration with the fallback.
+- **Rationale:** the product must not depend on a paid key that the team would have to manage and
+  protect, and the rule-based explanation already answered the same questions in our tests. AI
+  stays in the process (code, tests, images, documentation), documented in the AI log. The
+  earlier decision that the AI never decides the schedule made this removal a small change: only
+  the explanation layer was affected.
+
+## 27/11/2026 — Dialogs in cards and a custom select
+
+- **Decision:** rebuild every dialog as a set of framed panels with choice cards, a stepper and
+  quick-pick chips, and replace the native select with a custom one that shows the discipline
+  icon and color.
+- **Alternatives considered:** keeping native controls with light styling.
+- **Rationale:** native selects cannot show icons and look different on every system. The custom
+  one keeps what makes a native control usable: a real form value, full keyboard support
+  (arrows, Enter, Escape, typing to search) and the listbox roles for screen readers.

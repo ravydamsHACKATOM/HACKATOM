@@ -15,7 +15,6 @@ ambiente e em GitHub Secrets.
 - **Codex**: tentativa de uso no ambiente de desenvolvimento (não funcionou com a nossa conta).
 - **Claude Code**: reconstrução da aplicação em 27/11 (código, testes, CI e documentação).
 - **Z-Image Turbo no ComfyUI**, rodando localmente: ilustrações, ícones e texturas de papel.
-- **Claude pela API da Anthropic**: dentro do produto, para explicar o plano gerado (opcional).
 
 ## Registro
 
@@ -105,7 +104,7 @@ ambiente e em GitHub Secrets.
 - **Prompt principal:** refazer o back-end em Java 21 e Spring Boot cobrindo os seis requisitos
   do briefing, com a IA ajudando a propor e a refazer o plano.
 - **O que a IA gerou:** a API REST (disciplinas, provas e entregas, horários livres, plano), o
-  agendador em Java puro, o schema com Flyway e 35 testes automatizados.
+  agendador em Java puro, o schema com Flyway e 35 testes automatizados (44 depois das contas).
 - **O que o time aproveitou:** a separação entre o agendador determinístico e a explicação por IA,
   e as regras do agendamento (prazo mais próximo primeiro, sessões de 50 minutos, revisão antes da
   prova, aviso quando não cabe).
@@ -114,7 +113,7 @@ ambiente e em GitHub Secrets.
   antes de o plano ser marcado como gerado; o erro foi corrigido. A formatação do código passou a
   ser cobrada pelo build (Spotless), para não depender de revisão manual.
 
-### 27/11/2026 — IA dentro do produto: explicação do plano (Claude Code + API da Anthropic)
+### 27/11/2026 — IA dentro do produto: explicação do plano (testada e retirada)
 
 - **Prompt principal (instrução de sistema do produto):** "Você é o orientador de estudos do
   StudyFlow. Você recebe, em JSON, os fatos de um plano semanal já calculado por um algoritmo.
@@ -127,8 +126,9 @@ ambiente e em GitHub Secrets.
 - **O que o time corrigiu ou rejeitou, e por quê:** rejeitamos deixar a IA montar o cronograma,
   porque ela poderia marcar blocos fora dos horários livres e isso não é testável. Também
   rejeitamos tornar a IA obrigatória: sem chave ou em caso de falha, um orientador por regras
-  responde, e a interface mostra de onde veio o texto ("Escrito por IA" ou "Regras automáticas").
-  A integração com a API real ainda precisa ser exercitada com uma chave do time antes da demo.
+  respondia, e a interface mostrava de onde vinha o texto. Mais tarde, no mesmo dia, retiramos a
+  integração inteira: o produto não deve depender de uma chave paga, e a explicação por regras
+  cobria o mesmo terreno. A integração nunca chegou a ser exercitada contra a API real.
 
 ### 27/11/2026 — Interface (Claude Code)
 
@@ -173,3 +173,37 @@ ambiente e em GitHub Secrets.
   própria configuração na pipeline; ele passou a ser instalado como dependência do repositório. Um
   commit antigo do histórico não passa na regra e não pode ser reescrito sem alterar o histórico
   compartilhado, então foi listado como exceção, com a justificativa no arquivo de configuração.
+
+### 27/11/2026 — Contas, login e dados por usuário (Claude Code)
+
+- **Prompt principal:** "Cria um sistema de cadastro e login. Não precisa de integração com IA
+  (chave da IA)."
+- **O que a IA gerou:** as tabelas de usuários e sessões, o hash de senhas com BCrypt, o cookie de
+  sessão, um interceptador que protege a API, o filtro por dono em todas as consultas, nove testes
+  de API e o cartão de login na capa.
+- **O que o time aproveitou:** a sessão em cookie HttpOnly com só o resumo guardado, a mesma
+  resposta para senha errada e e-mail desconhecido, e o teste que prova que uma conta não lê nem
+  altera os dados de outra.
+- **O que o time corrigiu ou rejeitou, e por quê:** rejeitamos o framework Spring Security
+  completo e ficamos com o módulo de senhas dele mais um interceptador pequeno, que o time
+  consegue explicar. A primeira execução da pipeline no GitHub falhou por motivos que não
+  apareciam nas nossas máquinas com Windows: arquivos commitados com quebra de linha do Windows
+  reprovavam na checagem de formato no Linux, e o comando de teste do front-end só funcionava em
+  um Node mais novo. Os dois foram corrigidos com um arquivo `.gitattributes` e um padrão de
+  arquivos no comando de teste, e conferidos no Node 22.
+
+### 27/11/2026 — Modais e select próprio (Claude Code)
+
+- **Prompt principal:** "Melhora todos os modais e selects para ficarem mais premium, sutilmente
+  animados. O select deve ter o ícone da disciplina. Usa ícones, quadros com cada cartão, nada
+  simples."
+- **O que a IA gerou:** um novo layout de modal feito de painéis, cartões de escolha para o tipo,
+  o peso e os dias da semana, um contador com atalhos para as horas, e um select próprio com
+  ícones, uso pelo teclado e papéis para leitores de tela.
+- **O que o time aproveitou:** o layout, as dicas ao vivo ("em 7 dias", "cerca de 3 sessões") e a
+  opção de adicionar o mesmo horário livre em vários dias de uma vez.
+- **O que o time corrigiu ou rejeitou, e por quê:** no navegador, a lista do select fechava
+  sozinha logo depois de abrir, porque rolar até a opção ativa também rolava o modal, e o select
+  tratava isso como motivo para fechar. Depois a lista aparecia fora do lugar, porque os efeitos
+  visuais do modal mudavam a referência da "posição fixa". Agora a lista é rolada manualmente e
+  vai para o fim da página enquanto está aberta.

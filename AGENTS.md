@@ -9,7 +9,8 @@ decisions in [DECISIONS.md](DECISIONS.md) instead of duplicating them elsewhere.
 StudyFlow is a study planner for the "Hack com IA" hackathon (Senac, TDS). A Spring Boot back-end
 (Java 21, SQLite) exposes a REST API and serves a static front-end (HTML, CSS, JavaScript
 modules). The scheduling rules live in `backend/src/main/java/com/studyflow/plan/engine` as pure
-Java. The AI only explains plans; it never decides the schedule.
+Java. Students sign in with an account and only see their own data. There is no paid AI service
+in the product.
 
 ## Commands
 
@@ -34,7 +35,8 @@ Conventional Commits 1.0.0, **in English**, enforced by commitlint in the CI.
 ```
 
 - **Types:** `feat`, `fix`, `refactor`, `test`, `docs`, `ci`, `build`, `chore`, `style`, `perf`.
-- **Scopes:** `backend`, `frontend`, `scheduler`, `plan`, `ai`, `api`, `db`, `ci`, `docs`, `deps`.
+- **Scopes:** `backend`, `frontend`, `auth`, `scheduler`, `plan`, `ai`, `api`, `db`, `ci`, `docs`,
+  `deps`.
   The scope is optional for changes that span the repository.
 - **Summary:** imperative mood, lower case, no final period, at most 72 characters.
   Good: `feat(scheduler): reserve a review session before each exam`. Bad: `update files`.
@@ -56,10 +58,13 @@ Conventional Commits 1.0.0, **in English**, enforced by commitlint in the CI.
   both versions in the same commit.
 - **Back-end:** one package per feature. Controllers stay thin; rules that deserve a test go in a
   service or in `plan/engine`. Read the time from the injected `Clock`, never from `now()`.
-  Schema changes are new Flyway migrations (`V2__...sql`); never edit an applied one.
+  Schema changes are new Flyway migrations (`V3__...sql`); never edit an applied one. Every
+  repository method takes the user id and filters by it; controllers get it from the
+  `userId` request attribute set by `AuthInterceptor`.
 - **Front-end:** no framework and no build step. Build markup with the `html` tagged template in
   `js/dom.js`, which escapes every value. Colors, sizes and timings come from
-  `styles/tokens.css`. Animations must respect `prefers-reduced-motion`.
+  `styles/tokens.css`. Animations must respect `prefers-reduced-motion`. Dialog forms are built
+  from the pieces in `js/forms.js` and `js/select.js`.
 - **Tests:** a change in the scheduling rules comes with a test in `SchedulePlannerTest`; a
   change in an endpoint comes with a test in `StudyFlowApiTest`.
 

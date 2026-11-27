@@ -51,27 +51,27 @@ hours) and the weekly windows in which they can study. From that, StudyFlow:
 
 ### Where AI comes in
 
-- **In the product:** each generated plan comes with an explanation written by Claude (Anthropic)
-  from the facts computed by the scheduler. The model never decides the schedule, so a block can
-  never land outside the student's real availability. Without an API key, or if the provider
-  fails, a rule-based advisor answers instead and the app keeps working.
 - **In the process:** code, tests, images and documentation were produced with AI assistance and
-  reviewed by the team. Everything is recorded in [AI_LOG.md](AI_LOG.md).
+  reviewed by the team. The illustrations, icons and paper textures were generated with an image
+  model running on our own notebook. Everything is recorded in [AI_LOG.md](AI_LOG.md).
+- **In the product:** the plan is built and explained by fixed rules, with no paid AI service
+  behind it, so the app works offline and needs no API key. We tried an explanation written by a
+  language model and removed it; the reasons are in [DECISIONS.md](DECISIONS.md).
 
 ### MVP scope
 
-In: the six points above, light and dark themes, responsive layout and an example week that can
-be loaded in one click. Out, on purpose: accounts and login, integration with the school system,
-notifications, group study sessions and data import. The reasons are in
-[DECISIONS.md](DECISIONS.md).
+In: the six points above, accounts with sign-up and sign-in (each student sees only their own
+data), light and dark themes, responsive layout and an example week that can be loaded in one
+click. Out, on purpose: integration with the school system, notifications, group study sessions,
+data import and password recovery by email. The reasons are in [DECISIONS.md](DECISIONS.md).
 
 ## Stack
 
 | Layer | Technology |
 | --- | --- |
 | Back-end | Java 21, Spring Boot 3.5 (Web, Validation, JDBC) |
+| Accounts | BCrypt password hashes, server-side sessions in an HttpOnly cookie |
 | Database | SQLite, with Flyway migrations |
-| AI | Claude through the official Anthropic Java SDK (optional) |
 | Front-end | HTML, CSS and JavaScript modules, no build step |
 | Tests | JUnit 5, AssertJ, MockMvc; Node test runner for the front-end |
 | Lint | Spotless (google-java-format), ESLint, Prettier, commitlint |
@@ -87,17 +87,18 @@ notifications, group study sessions and data import. The reasons are in
 ├── AGENTS.md                  conventions for people and AI agents working here
 ├── backend/                   Spring Boot application
 │   └── src/main/java/com/studyflow/
+│       ├── auth/              accounts, sessions and the guard of the API
 │       ├── discipline/        disciplines (CRUD)
 │       ├── event/             exams and assignments (CRUD)
 │       ├── availability/      weekly free hours (CRUD)
 │       ├── plan/              weekly plan: service, endpoints, persistence
 │       │   └── engine/        the scheduler, pure Java with no framework
-│       ├── advisor/           plan explanation: Claude and rule-based fallback
+│       ├── advisor/           plan explanation, written by fixed rules
 │       └── common/            errors, clock, health check
 ├── frontend/                  static interface served by the back-end
 │   ├── index.html
 │   ├── styles/                design tokens, base, components, views
-│   ├── js/                    API client, templating, one module per screen
+│   ├── js/                    API client, templating, form controls, one module per screen
 │   ├── assets/                illustrations, icons and paper textures
 │   └── tests/                 unit tests of the formatting helpers
 ├── docs/                      original briefing of the hackathon
@@ -122,22 +123,13 @@ cd backend
 ```
 
 Open <http://localhost:8080>. The database is created at `backend/data/studyflow.db`.
-On the first screen, type a name and choose **"Preencher com um exemplo"** to load a sample week.
-
-### Turning the AI advisor on (optional)
-
-```bash
-export ANTHROPIC_API_KEY=...   # never commit this value
-./mvnw spring-boot:run
-```
-
-`.env.example` lists every setting. Without the key the advisor uses built-in rules and the
-interface shows "Regras automáticas" instead of "Escrito por IA".
+Create an account on the first screen and choose **"Preencher com um exemplo"** to load a sample
+week. `.env.example` lists the optional settings.
 
 ### Tests and lint
 
 ```bash
-cd backend && ./mvnw verify          # compile, 35 tests, format check, jar
+cd backend && ./mvnw verify          # compile, 44 tests, format check, jar
 cd frontend && npm ci && npm run lint && npm test
 ```
 
@@ -147,6 +139,8 @@ cd frontend && npm ci && npm run lint && npm test
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
+| POST | `/api/auth/register`, `/api/auth/login`, `/api/auth/logout` | Sign up, sign in, sign out |
+| GET | `/api/auth/me` | The signed-in student |
 | GET, POST, PUT, DELETE | `/api/disciplines` | Disciplines |
 | GET, POST, PUT, DELETE | `/api/events` | Exams and assignments, with progress |
 | GET, POST, PUT, DELETE | `/api/availability` | Weekly free hours |
@@ -156,6 +150,8 @@ cd frontend && npm ci && npm run lint && npm test
 | PATCH | `/api/blocks/{id}/locked` | Lock a block in its slot |
 | POST | `/api/blocks/{id}/postpone` | Postpone a block and rebuild the week |
 | GET | `/api/health` | Health check |
+
+Every route except the three auth routes above and the health check needs a session.
 
 ## CI/CD
 
