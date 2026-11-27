@@ -1,28 +1,28 @@
 # StudyFlow — Backend
 
-Spring Boot REST API for the StudyFlow study planner. This starter implements the backend MVP without AI integration and without imposing a frontend design. The Figma screens will be used later to build the frontend faithfully.
+Spring Boot application and REST API for the StudyFlow study planner. The web interface is served from `src/main/resources/static` by the same application.
 
 ## Requirements
 
 - Java 21.0.7 (the Maven wrapper uses the project-local JDK in `.jdks` when present)
-- Maven 3.9+ (or use the Maven wrapper if you add one)
+- Maven Wrapper (Maven is downloaded automatically when needed)
 - Internet access on the first build to download dependencies
 
 ## Run
 
-From the project root:
+From this directory, run:
 
 ```bash
-mvn spring-boot:run
+bash ./mvnw spring-boot:run
 ```
 
 The API starts at `http://localhost:8080`. The SQLite database is created at `./data/studyflow.db`.
 
-To build and test:
+On Windows PowerShell, use `.\mvnw.cmd spring-boot:run`. To run code style checks and tests:
 
 ```bash
-mvn clean test
-mvn clean package
+bash ./mvnw checkstyle:check
+bash ./mvnw clean verify
 ```
 
 ## Main endpoints
@@ -95,7 +95,7 @@ Mark a block as completed:
 
 ## Notes
 
-- This is the backend foundation. The frontend will be implemented after reviewing the actual Figma/prototype screenshots.
+- The integrated web interface is available at `http://localhost:8080` while the application is running.
 - No AI provider or AI feature is connected.
 - CORS currently allows common local frontend origins (`localhost:5500` and `localhost:3000`). Adjust `CorsConfig` if your frontend uses another port.
 - SQLite database files are local and ignored by Git.

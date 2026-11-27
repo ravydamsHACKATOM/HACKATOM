@@ -1,7 +1,12 @@
 package com.studyflow.repository;
 
-import com.studyflow.model.*;
-import com.studyflow.dto.*;
+import com.studyflow.dto.AvailabilityRequest;
+import com.studyflow.dto.DisciplineRequest;
+import com.studyflow.dto.StudyEventRequest;
+import com.studyflow.model.Availability;
+import com.studyflow.model.Discipline;
+import com.studyflow.model.StudyBlock;
+import com.studyflow.model.StudyEvent;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;

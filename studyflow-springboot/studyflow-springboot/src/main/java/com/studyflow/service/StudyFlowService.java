@@ -1,14 +1,24 @@
 package com.studyflow.service;
 
-import com.studyflow.dto.*;
-import com.studyflow.model.*;
+import com.studyflow.dto.AvailabilityRequest;
+import com.studyflow.dto.DisciplineRequest;
+import com.studyflow.dto.StudyEventRequest;
+import com.studyflow.model.Availability;
+import com.studyflow.model.Discipline;
+import com.studyflow.model.StudyBlock;
+import com.studyflow.model.StudyEvent;
 import com.studyflow.repository.StudyFlowRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.*;
-import java.util.*;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 @Service
 public class StudyFlowService {
@@ -57,6 +67,7 @@ public class StudyFlowService {
         return repository.setBlockCompleted(id, completed).orElseThrow(() -> notFound("Study block not found"));
     }
 
+    @Transactional
     public List<StudyBlock> generateSchedule(LocalDate weekStart) {
         LocalDate monday = weekStart.with(DayOfWeek.MONDAY);
         LocalDate sunday = monday.plusDays(6);
@@ -76,7 +87,9 @@ public class StudyFlowService {
             int remainingMinutes = (int) Math.ceil(event.estimatedHours() * 60);
             LocalDate dueDate = LocalDate.parse(event.dueDate());
 
-            for (LocalDate day = monday; !day.isAfter(dueDate) && remainingMinutes > 0; day = day.plusDays(1)) {
+            for (LocalDate day = monday;
+                 !day.isAfter(sunday) && !day.isAfter(dueDate) && remainingMinutes > 0;
+                 day = day.plusDays(1)) {
                 int dayOfWeek = day.getDayOfWeek().getValue();
                 List<Availability> daySlots = availabilities.stream()
                         .filter(a -> a.dayOfWeek() == dayOfWeek)
