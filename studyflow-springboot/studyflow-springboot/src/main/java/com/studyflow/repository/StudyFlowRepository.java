@@ -7,6 +7,7 @@ import com.studyflow.model.Availability;
 import com.studyflow.model.Discipline;
 import com.studyflow.model.StudyBlock;
 import com.studyflow.model.StudyEvent;
+import com.studyflow.service.CurrentUser;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -19,9 +20,11 @@ import java.util.Optional;
 @Repository
 public class StudyFlowRepository {
     private final JdbcTemplate jdbc;
+    private final CurrentUser currentUser;
 
-    public StudyFlowRepository(JdbcTemplate jdbc) {
+    public StudyFlowRepository(JdbcTemplate jdbc, CurrentUser currentUser) {
         this.jdbc = jdbc;
+        this.currentUser = currentUser;
     }
 
     private final RowMapper<Discipline> disciplineMapper = (rs, n) ->
@@ -45,131 +48,142 @@ public class StudyFlowRepository {
                     rs.getInt("duration_minutes"), rs.getInt("completed") == 1);
 
     public List<Discipline> findAllDisciplines() {
-        return jdbc.query("SELECT * FROM disciplines ORDER BY name", disciplineMapper);
+        return jdbc.query("SELECT * FROM disciplines WHERE user_id=? ORDER BY name",
+                disciplineMapper, currentUser.id());
     }
 
     public Optional<Discipline> findDiscipline(long id) {
-        return jdbc.query("SELECT * FROM disciplines WHERE id = ?", disciplineMapper, id)
+        return jdbc.query("SELECT * FROM disciplines WHERE id=? AND user_id=?",
+                        disciplineMapper, id, currentUser.id())
                 .stream().findFirst();
     }
 
     public Discipline createDiscipline(DisciplineRequest r) {
-        jdbc.update("INSERT INTO disciplines(name,color,description) VALUES(?,?,?)",
-                r.name(), defaultColor(r.color()), r.description());
+        jdbc.update("INSERT INTO disciplines(user_id,name,color,description) VALUES(?,?,?,?)",
+                currentUser.id(), r.name(), defaultColor(r.color()), r.description());
         return findDiscipline(lastId()).orElseThrow();
     }
 
     public Optional<Discipline> updateDiscipline(long id, DisciplineRequest r) {
-        int changed = jdbc.update("UPDATE disciplines SET name=?,color=?,description=? WHERE id=?",
-                r.name(), defaultColor(r.color()), r.description(), id);
+        int changed = jdbc.update("UPDATE disciplines SET name=?,color=?,description=? WHERE id=? AND user_id=?",
+                r.name(), defaultColor(r.color()), r.description(), id, currentUser.id());
         return changed == 0 ? Optional.empty() : findDiscipline(id);
     }
 
     public boolean deleteDiscipline(long id) {
-        return jdbc.update("DELETE FROM disciplines WHERE id=?", id) > 0;
+        return jdbc.update("DELETE FROM disciplines WHERE id=? AND user_id=?", id,
+                currentUser.id()) > 0;
     }
 
     public List<StudyEvent> findAllEvents() {
-        return jdbc.query("SELECT * FROM study_events ORDER BY due_date", eventMapper);
+        return jdbc.query("SELECT * FROM study_events WHERE user_id=? ORDER BY due_date",
+                eventMapper, currentUser.id());
     }
 
     public Optional<StudyEvent> findEvent(long id) {
-        return jdbc.query("SELECT * FROM study_events WHERE id=?", eventMapper, id)
+        return jdbc.query("SELECT * FROM study_events WHERE id=? AND user_id=?", eventMapper,
+                        id, currentUser.id())
                 .stream().findFirst();
     }
 
     public StudyEvent createEvent(StudyEventRequest r) {
-        jdbc.update("INSERT INTO study_events(title,event_type,due_date,estimated_hours,discipline_id,description) VALUES(?,?,?,?,?,?)",
-                r.title(), r.eventType(), r.dueDate().toString(), r.estimatedHours(),
+        jdbc.update("INSERT INTO study_events(user_id,title,event_type,due_date,estimated_hours,discipline_id,description) VALUES(?,?,?,?,?,?,?)",
+                currentUser.id(), r.title(), r.eventType(), r.dueDate().toString(), r.estimatedHours(),
                 r.disciplineId(), r.description());
         return findEvent(lastId()).orElseThrow();
     }
 
     public Optional<StudyEvent> updateEvent(long id, StudyEventRequest r) {
-        int changed = jdbc.update("UPDATE study_events SET title=?,event_type=?,due_date=?,estimated_hours=?,discipline_id=?,description=? WHERE id=?",
+        int changed = jdbc.update("UPDATE study_events SET title=?,event_type=?,due_date=?,estimated_hours=?,discipline_id=?,description=? WHERE id=? AND user_id=?",
                 r.title(), r.eventType(), r.dueDate().toString(), r.estimatedHours(),
-                r.disciplineId(), r.description(), id);
+                r.disciplineId(), r.description(), id, currentUser.id());
         return changed == 0 ? Optional.empty() : findEvent(id);
     }
 
     public boolean deleteEvent(long id) {
-        return jdbc.update("DELETE FROM study_events WHERE id=?", id) > 0;
+        return jdbc.update("DELETE FROM study_events WHERE id=? AND user_id=?", id,
+                currentUser.id()) > 0;
     }
 
     public List<Availability> findAllAvailabilities() {
-        return jdbc.query("SELECT * FROM availabilities ORDER BY day_of_week,start_time", availabilityMapper);
+        return jdbc.query("SELECT * FROM availabilities WHERE user_id=? ORDER BY day_of_week,start_time",
+                availabilityMapper, currentUser.id());
     }
 
     public Optional<Availability> findAvailability(long id) {
-        return jdbc.query("SELECT * FROM availabilities WHERE id=?", availabilityMapper, id)
+        return jdbc.query("SELECT * FROM availabilities WHERE id=? AND user_id=?", availabilityMapper,
+                        id, currentUser.id())
                 .stream().findFirst();
     }
 
     public Availability createAvailability(AvailabilityRequest r) {
-        jdbc.update("INSERT INTO availabilities(day_of_week,start_time,end_time) VALUES(?,?,?)",
-                r.dayOfWeek(), r.startTime().toString(), r.endTime().toString());
+        jdbc.update("INSERT INTO availabilities(user_id,day_of_week,start_time,end_time) VALUES(?,?,?,?)",
+                currentUser.id(), r.dayOfWeek(), r.startTime().toString(), r.endTime().toString());
         return findAvailability(lastId()).orElseThrow();
     }
 
     public Optional<Availability> updateAvailability(long id, AvailabilityRequest r) {
-        int changed = jdbc.update("UPDATE availabilities SET day_of_week=?,start_time=?,end_time=? WHERE id=?",
-                r.dayOfWeek(), r.startTime().toString(), r.endTime().toString(), id);
+        int changed = jdbc.update("UPDATE availabilities SET day_of_week=?,start_time=?,end_time=? WHERE id=? AND user_id=?",
+                r.dayOfWeek(), r.startTime().toString(), r.endTime().toString(), id,
+                currentUser.id());
         return changed == 0 ? Optional.empty() : findAvailability(id);
     }
 
     public boolean deleteAvailability(long id) {
-        return jdbc.update("DELETE FROM availabilities WHERE id=?", id) > 0;
+        return jdbc.update("DELETE FROM availabilities WHERE id=? AND user_id=?", id,
+                currentUser.id()) > 0;
     }
 
     public List<StudyBlock> findBlocks(LocalDate from, LocalDate to) {
-        return jdbc.query("SELECT * FROM study_blocks WHERE study_date BETWEEN ? AND ? ORDER BY study_date,start_time",
-                blockMapper, from.toString(), to.toString());
+        return jdbc.query("SELECT * FROM study_blocks WHERE user_id=? AND study_date BETWEEN ? AND ? ORDER BY study_date,start_time",
+                blockMapper, currentUser.id(), from.toString(), to.toString());
     }
 
     public List<StudyBlock> findBlocksForDay(LocalDate date) {
-        return jdbc.query("SELECT * FROM study_blocks WHERE study_date=? ORDER BY start_time",
-                blockMapper, date.toString());
+        return jdbc.query("SELECT * FROM study_blocks WHERE user_id=? AND study_date=? ORDER BY start_time",
+                blockMapper, currentUser.id(), date.toString());
     }
 
     public Optional<StudyBlock> findBlock(long id) {
-        return jdbc.query("SELECT * FROM study_blocks WHERE id=?", blockMapper, id)
+        return jdbc.query("SELECT * FROM study_blocks WHERE id=? AND user_id=?", blockMapper,
+                        id, currentUser.id())
                 .stream().findFirst();
     }
 
     public List<StudyEvent> findEventsDueBy(LocalDate date) {
-        return jdbc.query("SELECT * FROM study_events WHERE due_date >= ? ORDER BY due_date",
-                eventMapper, date.toString());
+        return jdbc.query("SELECT * FROM study_events WHERE user_id=? AND due_date >= ? ORDER BY due_date",
+                eventMapper, currentUser.id(), date.toString());
     }
 
     public void deletePendingBlocksBetween(LocalDate from, LocalDate to) {
-        jdbc.update("DELETE FROM study_blocks WHERE study_date BETWEEN ? AND ? AND completed=0",
-                from.toString(), to.toString());
+        jdbc.update("DELETE FROM study_blocks WHERE user_id=? AND study_date BETWEEN ? AND ? AND completed=0",
+                currentUser.id(), from.toString(), to.toString());
     }
 
     public boolean hasOverlap(LocalDate date, LocalTime start, LocalTime end) {
         Integer count = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM study_blocks WHERE study_date=? AND start_time < ? AND end_time > ?",
-                Integer.class, date.toString(), end.toString(), start.toString());
+                "SELECT COUNT(*) FROM study_blocks WHERE user_id=? AND study_date=? AND start_time < ? AND end_time > ?",
+                Integer.class, currentUser.id(), date.toString(), end.toString(), start.toString());
         return count != null && count > 0;
     }
 
     public StudyBlock createBlock(long eventId, long disciplineId, LocalDate date,
                                   LocalTime start, LocalTime end, int minutes) {
-        jdbc.update("INSERT INTO study_blocks(study_event_id,discipline_id,study_date,start_time,end_time,duration_minutes,completed) VALUES(?,?,?,?,?,?,0)",
-                eventId, disciplineId, date.toString(), start.toString(), end.toString(), minutes);
+        jdbc.update("INSERT INTO study_blocks(user_id,study_event_id,discipline_id,study_date,start_time,end_time,duration_minutes,completed) VALUES(?,?,?,?,?,?,?,0)",
+                currentUser.id(), eventId, disciplineId, date.toString(), start.toString(), end.toString(), minutes);
         return findBlock(lastId()).orElseThrow();
     }
 
     public Optional<StudyBlock> setBlockCompleted(long id, boolean completed) {
-        int changed = jdbc.update("UPDATE study_blocks SET completed=? WHERE id=?",
-                completed ? 1 : 0, id);
+        int changed = jdbc.update("UPDATE study_blocks SET completed=? WHERE id=? AND user_id=?",
+                completed ? 1 : 0, id, currentUser.id());
         return changed == 0 ? Optional.empty() : findBlock(id);
     }
 
     public Optional<StudyBlock> updateBlockTime(long id, LocalDate date, LocalTime start, LocalTime end) {
-        int changed = jdbc.update("UPDATE study_blocks SET study_date=?,start_time=?,end_time=?,duration_minutes=? WHERE id=?",
+        int changed = jdbc.update("UPDATE study_blocks SET study_date=?,start_time=?,end_time=?,duration_minutes=? WHERE id=? AND user_id=?",
                 date.toString(), start.toString(), end.toString(),
-                (int) java.time.Duration.between(start, end).toMinutes(), id);
+                (int) java.time.Duration.between(start, end).toMinutes(), id, currentUser.id());
         return changed == 0 ? Optional.empty() : findBlock(id);
     }
 

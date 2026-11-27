@@ -19,7 +19,8 @@ const state = {
     todayBlocks: [],
     week: getMonday(new Date()),
     editing: null,
-    modalType: null
+    modalType: null,
+    modalOpener: null
 };
 
 const $ = selector => document.querySelector(selector);
@@ -37,6 +38,8 @@ const days = [
 ];
 
 let toastTimer;
+let csrfToken = null;
+let currentProfile = null;
 
 
 // ==========================================
@@ -130,14 +133,24 @@ function showToast(message) {
 
 async function api(endpoint, options = {}) {
 
+    const method = (options.method || "GET").toUpperCase();
+    const headers = {
+        "Content-Type": "application/json",
+        ...(options.headers || {})
+    };
+
+    if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
+        if (!csrfToken) await refreshCsrf();
+        headers[csrfToken.headerName] = csrfToken.token;
+    }
+
     const response = await fetch(API_URL + endpoint, {
 
         ...options,
 
-        headers: {
-            "Content-Type": "application/json",
-            ...(options.headers || {})
-        }
+        method,
+        credentials: "same-origin",
+        headers
 
     });
 
@@ -173,6 +186,57 @@ async function api(endpoint, options = {}) {
 
     return null;
 
+}
+
+async function refreshCsrf() {
+    const response = await fetch(`${API_URL}/api/auth/csrf`, {
+        credentials: "same-origin"
+    });
+    if (!response.ok) throw new Error("Não foi possível iniciar uma sessão segura.");
+    csrfToken = await response.json();
+    return csrfToken;
+}
+
+function setAuthMode(mode) {
+    const registering = mode === "register";
+    $("#loginForm").hidden = registering;
+    $("#registerForm").hidden = !registering;
+    $("#authTitle").textContent = registering ? "Crie sua conta" : "Que bom ter você de volta";
+    $("#authDescription").textContent = registering
+        ? "Organize suas disciplinas, prazos e horários em um só lugar."
+        : "Entre para acessar seu cronograma e continuar seus estudos.";
+    $("#authMessage").hidden = true;
+}
+
+function showAuth(message = "") {
+    $("#appLayout").hidden = true;
+    $("#authScreen").hidden = false;
+    setAuthMode("login");
+    $("#authMessage").textContent = message;
+    $("#authMessage").hidden = !message;
+}
+
+function showApp(profile) {
+    currentProfile = profile;
+    $("#authScreen").hidden = true;
+    $("#appLayout").hidden = false;
+    $("#userName").textContent = profile.name;
+    $("#userAvatar").textContent = profile.name.trim().charAt(0).toUpperCase();
+    loadAll();
+}
+
+async function initializeApp() {
+    try {
+        await refreshCsrf();
+        const profile = await api("/api/auth/me");
+        showApp(profile);
+    } catch (error) {
+        if (error.message === "Faça login para continuar.") {
+            showAuth();
+        } else {
+            showAuth("Não foi possível conectar ao StudyFlow. Confira se o servidor está rodando.");
+        }
+    }
 }
 
 
@@ -233,10 +297,14 @@ function showView(viewName) {
 
     $$(".nav").forEach(button => {
 
-        button.classList.toggle(
-            "active",
-            button.dataset.view === viewName
-        );
+        const isActive = button.dataset.view === viewName;
+        button.classList.toggle("active", isActive);
+
+        if (isActive) {
+            button.setAttribute("aria-current", "page");
+        } else {
+            button.removeAttribute("aria-current");
+        }
 
     });
 
@@ -259,13 +327,21 @@ function showView(viewName) {
     $("#crumb").textContent = labels[viewName] || "Visão geral";
 
 
-    $("#sidebar").classList.remove("open");
+    setSidebarOpen(false);
 
 
     if (viewName === "schedule") {
         loadBlocks();
     }
 
+}
+
+function setSidebarOpen(isOpen) {
+    $("#sidebar").classList.toggle("open", isOpen);
+    $("#sidebarOverlay").hidden = !isOpen;
+    $("#menu").setAttribute("aria-expanded", String(isOpen));
+    $("#menu").setAttribute("aria-label", isOpen ? "Fechar menu" : "Abrir menu");
+    document.body.classList.toggle("menu-open", isOpen);
 }
 
 
@@ -490,17 +566,23 @@ function renderDashboard() {
 
 function renderTodayTasks() {
 
-    const today = state.todayBlocks
+    const todayDate = formatISO(new Date());
+    const todayBlocks = state.todayBlocks
         .slice()
         .sort((a, b) => a.startTime.localeCompare(b.startTime));
+    const dueToday = state.events
+        .filter(event => event.dueDate === todayDate)
+        .sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
 
 
-    if (today.length === 0) {
+    if (todayBlocks.length === 0 && dueToday.length === 0) {
 
         $("#todayList").innerHTML = `
             <div class="empty">
-                Nenhum bloco previsto para hoje.
-                Organize sua semana!
+                <span class="empty-icon" aria-hidden="true">☀</span>
+                <strong>Nada planejado para hoje.</strong>
+                <span>Cadastre um prazo ou configure seus horários e gere o cronograma.</span>
+                <button class="text-button" data-view="availability">Configurar horários</button>
             </div>
         `;
 
@@ -508,7 +590,7 @@ function renderTodayTasks() {
     }
 
 
-    $("#todayList").innerHTML = today.map(block => {
+    const studyTasks = todayBlocks.map(block => {
 
         return `
 
@@ -543,7 +625,23 @@ function renderTodayTasks() {
 
         `;
 
-    }).join("");
+    });
+
+    const deadlineTasks = dueToday.map(event => {
+        const type = event.eventType === "EXAM" ? "Prova" : "Trabalho";
+        return `
+            <div class="task task-deadline">
+                <span class="deadline-marker" aria-hidden="true">!</span>
+                <div class="task-info">
+                    <b>${escapeHTML(event.title)}</b>
+                    <small>${type} · ${escapeHTML(getDisciplineName(event.disciplineId))}</small>
+                </div>
+                <span class="time deadline-time">${type} hoje</span>
+            </div>
+        `;
+    });
+
+    $("#todayList").innerHTML = [...deadlineTasks, ...studyTasks].join("");
 
 }
 
@@ -570,7 +668,10 @@ function renderUpcomingEvents() {
 
         $("#upcoming").innerHTML = `
             <div class="empty">
-                Nenhum prazo futuro cadastrado.
+                <span class="empty-icon" aria-hidden="true">◷</span>
+                <strong>Sem prazos por enquanto.</strong>
+                <span>Adicione uma prova ou trabalho para planejar seus estudos.</span>
+                <button class="text-button" data-action="new-event">Adicionar compromisso</button>
             </div>
         `;
 
@@ -638,7 +739,10 @@ function renderEvents() {
 
         container.innerHTML = `
             <div class="empty">
-                Nenhuma prova ou trabalho cadastrado.
+                <span class="empty-icon" aria-hidden="true">◷</span>
+                <strong>Você ainda não tem compromissos.</strong>
+                <span>Cadastre uma prova ou trabalho para organizar o que precisa estudar.</span>
+                <button class="text-button" data-action="new-event">Adicionar compromisso</button>
             </div>
         `;
 
@@ -715,7 +819,10 @@ function renderDisciplines() {
 
         container.innerHTML = `
             <div class="empty">
-                Cadastre sua primeira disciplina.
+                <span class="empty-icon" aria-hidden="true">▤</span>
+                <strong>Comece cadastrando uma disciplina.</strong>
+                <span>Assim você pode relacionar provas e trabalhos a cada matéria.</span>
+                <button class="text-button" data-action="new-discipline">Adicionar disciplina</button>
             </div>
         `;
 
@@ -774,7 +881,9 @@ function renderAvailability() {
 
         container.innerHTML = `
             <div class="empty">
-                Adicione suas janelas livres acima.
+                <span class="empty-icon" aria-hidden="true">◴</span>
+                <strong>Nenhum horário cadastrado ainda.</strong>
+                <span>Use o formulário acima para dizer quando costuma poder estudar.</span>
             </div>
         `;
 
@@ -960,6 +1069,7 @@ function openModal(type, record = null) {
     }
 
 
+    state.modalOpener = document.activeElement;
     state.modalType = type;
 
     state.editing = record ? record.id : null;
@@ -1143,6 +1253,7 @@ function openModal(type, record = null) {
     $("#fields").innerHTML = fields;
 
     $("#modal").hidden = false;
+    requestAnimationFrame(() => $("#fields").querySelector("input, select, textarea")?.focus());
 
 }
 
@@ -1162,6 +1273,9 @@ function closeModal() {
     state.editing = null;
 
     state.modalType = null;
+
+    state.modalOpener?.focus();
+    state.modalOpener = null;
 
 }
 
@@ -1574,6 +1688,11 @@ document.addEventListener("click", event => {
             generateSchedule();
         }
 
+
+        if (action === "recommend-study") {
+            requestStudyRecommendation(actionButton);
+        }
+
     }
 
 
@@ -1668,6 +1787,41 @@ document.addEventListener("click", event => {
 });
 
 
+async function requestStudyRecommendation(button) {
+    const panel = $("#aiRecommendation");
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = "Pensando...";
+    panel.hidden = false;
+    panel.classList.remove("has-error");
+    panel.classList.add("is-loading");
+    $("#aiRecommendationTitle").textContent = "Preparando sua recomendação...";
+    $("#aiRecommendationReason").textContent = "Analisando seus prazos e sua rotina de estudos.";
+    $("#aiRecommendationAction").textContent = "";
+    $("#aiRecommendationDuration").textContent = "";
+
+    try {
+        const recommendation = await api("/api/ai/study-recommendation", {
+            method: "POST",
+            body: JSON.stringify({})
+        });
+        $("#aiRecommendationTitle").textContent = recommendation.title;
+        $("#aiRecommendationReason").textContent = recommendation.reason;
+        $("#aiRecommendationAction").textContent = recommendation.action;
+        $("#aiRecommendationDuration").textContent = `${recommendation.durationMinutes} min`;
+        panel.classList.remove("is-loading");
+    } catch (error) {
+        $("#aiRecommendationTitle").textContent = "Não foi possível gerar a sugestão";
+        $("#aiRecommendationReason").textContent = error.message;
+        panel.classList.remove("is-loading");
+        panel.classList.add("has-error");
+    } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+    }
+}
+
+
 // ==========================================
 // 27. CONFIGURAÇÃO DOS FORMULÁRIOS
 // ==========================================
@@ -1682,6 +1836,107 @@ $("#availabilityForm").addEventListener(
     "submit",
     saveAvailability
 );
+
+$$('[data-auth-mode]').forEach(button => {
+    button.addEventListener("click", () => setAuthMode(button.dataset.authMode));
+});
+
+$("#loginForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = Object.fromEntries(new FormData(form).entries());
+    const message = $("#authMessage");
+    message.hidden = true;
+
+    try {
+        const profile = await api("/api/auth/login", {
+            method: "POST",
+            body: JSON.stringify(data)
+        });
+        await refreshCsrf();
+        form.reset();
+        showApp(profile);
+    } catch (error) {
+        message.textContent = error.message;
+        message.hidden = false;
+    }
+});
+
+$("#registerForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = Object.fromEntries(new FormData(form).entries());
+    const message = $("#authMessage");
+    message.hidden = true;
+
+    if (data.password !== data.confirmPassword) {
+        message.textContent = "As senhas digitadas não são iguais.";
+        message.hidden = false;
+        return;
+    }
+
+    try {
+        await api("/api/auth/register", {
+            method: "POST",
+            body: JSON.stringify({ name: data.name, email: data.email, password: data.password })
+        });
+        const profile = await api("/api/auth/login", {
+            method: "POST",
+            body: JSON.stringify({ email: data.email, password: data.password })
+        });
+        await refreshCsrf();
+        form.reset();
+        showApp(profile);
+    } catch (error) {
+        message.textContent = error.message;
+        message.hidden = false;
+    }
+});
+
+$("#profileButton").addEventListener("click", () => {
+    $("#profileName").value = currentProfile.name;
+    $("#profileEmail").value = currentProfile.email;
+    $("#profileModal").hidden = false;
+    requestAnimationFrame(() => $("#profileName").focus());
+});
+
+function closeProfile() {
+    $("#profileModal").hidden = true;
+    $("#profileButton").focus();
+}
+
+$("#closeProfile").addEventListener("click", closeProfile);
+$("#profileCancel").addEventListener("click", closeProfile);
+$("#profileModal").addEventListener("click", event => {
+    if (event.target.id === "profileModal") closeProfile();
+});
+
+$("#profileForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    const name = $("#profileName").value.trim();
+    try {
+        currentProfile = await api("/api/auth/profile", {
+            method: "PUT",
+            body: JSON.stringify({ name })
+        });
+        $("#userName").textContent = currentProfile.name;
+        $("#userAvatar").textContent = currentProfile.name.trim().charAt(0).toUpperCase();
+        closeProfile();
+        showToast("Perfil atualizado.");
+    } catch (error) {
+        showToast(error.message);
+    }
+});
+
+$("#logoutButton").addEventListener("click", async () => {
+    try {
+        await api("/api/auth/logout", { method: "POST" });
+        currentProfile = null;
+        showAuth();
+    } catch (error) {
+        showToast(error.message);
+    }
+});
 
 
 // ==========================================
@@ -1736,10 +1991,10 @@ $("#todayWeek").addEventListener(
 // ==========================================
 
 $("#menu").addEventListener("click", () => {
-
-    $("#sidebar").classList.toggle("open");
-
+    setSidebarOpen(!$("#sidebar").classList.contains("open"));
 });
+
+$("#sidebarOverlay").addEventListener("click", () => setSidebarOpen(false));
 
 
 // ==========================================
@@ -1749,7 +2004,13 @@ $("#menu").addEventListener("click", () => {
 document.addEventListener("keydown", event => {
 
     if (event.key === "Escape") {
-        closeModal();
+        if (!$("#modal").hidden) {
+            closeModal();
+        }
+        if (!$("#profileModal").hidden) {
+            closeProfile();
+        }
+        setSidebarOpen(false);
     }
 
 });
@@ -1759,4 +2020,4 @@ document.addEventListener("keydown", event => {
 // 32. INICIALIZAÇÃO DO STUDYFLOW
 // ==========================================
 
-loadAll();
+initializeApp();

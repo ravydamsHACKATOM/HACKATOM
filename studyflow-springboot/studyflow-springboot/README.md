@@ -39,7 +39,21 @@ bash ./mvnw clean verify
 | GET | `/api/blocks?from=2026-11-23&to=2026-11-29` | List blocks in a date range |
 | GET | `/api/blocks/today?date=2026-11-26` | List a day's study blocks |
 | PATCH | `/api/blocks/{id}/completion` | Mark a block completed/incomplete |
+| POST | `/api/ai/study-recommendation` | Recommend the next study action with AI |
 | GET | `/api/health` | Check API status |
+
+## AI study recommendation
+
+The dashboard's “O que estudar agora?” button uses the OpenAI Responses API. The app sends upcoming deadlines, discipline names, availability windows, and aggregated completed study time for the signed-in account to generate a suggestion. It does not send account email or password. Configure an API key in the environment before starting the app; the key is read only by the backend and must not be committed to Git.
+
+In Windows PowerShell, set it in the terminal where you will run StudyFlow:
+
+```powershell
+$env:OPENAI_API_KEY="sua-chave-da-api"
+.\mvnw.cmd spring-boot:run
+```
+
+On Bash, use `export OPENAI_API_KEY="sua-chave-da-api"` before `./mvnw spring-boot:run`. The default model is `gpt-6-luna`, selected for this focused, short recommendation task; set `OPENAI_MODEL` to override it. Calls use your OpenAI API account and may consume API credits. Without the key, the rest of the app works and the recommendation button explains how to configure it.
 
 ## Example requests
 
@@ -96,6 +110,5 @@ Mark a block as completed:
 ## Notes
 
 - The integrated web interface is available at `http://localhost:8080` while the application is running.
-- No AI provider or AI feature is connected.
 - CORS currently allows common local frontend origins (`localhost:5500` and `localhost:3000`). Adjust `CorsConfig` if your frontend uses another port.
 - SQLite database files are local and ignored by Git.
