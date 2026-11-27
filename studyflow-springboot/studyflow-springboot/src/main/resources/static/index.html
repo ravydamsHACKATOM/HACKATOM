@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="theme-color" content="#6757dc">
+
+    <title>StudyFlow | Agenda de Estudos</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
+          rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/style.css">
+
+    <script src="/js/app.js" defer></script>
+</head>
+
+<body>
+
+<div class="layout">
+
+    <!-- MENU LATERAL -->
+    <aside class="sidebar" id="sidebar">
+
+        <a class="brand" href="#">
+            <b>S</b> study<span>flow</span>
+        </a>
+
+        <p class="nav-label">MENU PRINCIPAL</p>
+
+        <nav>
+
+            <button class="nav active" data-view="dashboard">
+                ⌂ <span>Visão geral</span>
+            </button>
+
+            <button class="nav" data-view="schedule">
+                ▦ <span>Meu cronograma</span>
+            </button>
+
+            <button class="nav" data-view="events">
+                ◷ <span>Provas e trabalhos</span>
+            </button>
+
+            <button class="nav" data-view="disciplines">
+                ▤ <span>Disciplinas</span>
+            </button>
+
+            <button class="nav" data-view="availability">
+                ◴ <span>Disponibilidade</span>
+            </button>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <div class="tip">
+                <b>✦ Um passo de cada vez.</b>
+
+                <p>
+                    Organize sua rotina e mantenha
+                    o foco no que importa.
+                </p>
+            </div>
+
+            <div class="user">
+                <b>E</b>
+
+                <span>
+                    <strong>Estudante</strong>
+                    <small>Minha área de estudos</small>
+                </span>
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main>
+
+        <!-- CABEÇALHO -->
+        <header class="topbar">
+
+            <button id="menu" class="menu">
+                ☰
+            </button>
+
+            <div>
+                Workspace
+                <i>/</i>
+                <strong id="crumb">Visão geral</strong>
+            </div>
+
+            <span class="status">
+                <i id="statusDot"></i>
+                <span id="statusText">Conectando...</span>
+            </span>
+
+        </header>
+
+
+        <!-- DASHBOARD -->
+        <section class="view active" id="dashboard">
+
+            <div class="heading">
+
+                <div>
+
+                    <small class="eyebrow" id="todayLabel">
+                        SEU ESPAÇO DE APRENDIZADO
+                    </small>
+
+                    <h1>
+                        Bom estudo! <em>✦</em>
+                    </h1>
+
+                    <p>
+                        Pequenos passos todos os dias
+                        levam você mais longe.
+                    </p>
+
+                </div>
+
+                <button class="primary" data-action="generate">
+                    ✦ Gerar cronograma
+                </button>
+
+            </div>
+
+
+            <!-- INDICADORES -->
+            <div class="stats">
+
+                <article>
+                    <label>Disciplinas</label>
+                    <b id="statDisciplines">0</b>
+                    <small>cadastradas</small>
+                </article>
+
+                <article>
+                    <label>Compromissos</label>
+                    <b id="statEvents">0</b>
+                    <small>provas e trabalhos</small>
+                </article>
+
+                <article>
+                    <label>Blocos concluídos</label>
+                    <b id="statDone">0</b>
+                    <small>no cronograma</small>
+                </article>
+
+                <article>
+                    <label>Horas planejadas</label>
+                    <b id="statHours">0h</b>
+                    <small>em blocos de estudo</small>
+                </article>
+
+            </div>
+
+
+            <!-- ATIVIDADES DO DIA -->
+            <div class="columns">
+
+                <section class="panel">
+
+                    <div class="panel-title">
+
+                        <div>
+                            <small class="eyebrow">
+                                ACOMPANHE SEU DIA
+                            </small>
+
+                            <h2>O que fazer hoje</h2>
+                        </div>
+
+                        <button class="link" data-view="schedule">
+                            Ver cronograma →
+                        </button>
+
+                    </div>
+
+                    <div id="todayList" class="list empty">
+                        Carregando...
+                    </div>
+
+                </section>
+
+
+                <!-- PRÓXIMOS PRAZOS -->
+                <section class="panel">
+
+                    <div class="panel-title">
+
+                        <div>
+                            <small class="eyebrow">
+                                FIQUE DE OLHO
+                            </small>
+
+                            <h2>Próximos prazos</h2>
+                        </div>
+
+                        <button class="link" data-view="events">
+                            Ver todos →
+                        </button>
+
+                    </div>
+
+                    <div id="upcoming" class="list empty">
+                        Carregando...
+                    </div>
+
+                </section>
+
+            </div>
+
+
+            <!-- AÇÕES RÁPIDAS -->
+            <section class="panel quick">
+
+                <div>
+
+                    <small class="eyebrow">
+                        COMECE POR AQUI
+                    </small>
+
+                    <h2>Deixe sua semana organizada</h2>
+
+                    <p>
+                        Cadastre compromissos e horários livres.
+                        O StudyFlow ajuda a distribuir sessões
+                        de estudo.
+                    </p>
+
+                </div>
+
+                <div class="quick-actions">
+
+                    <button data-action="new-event">
+                        <b>＋</b>
+                        <strong>Novo compromisso</strong>
+                        <small>Adicione uma prova ou trabalho</small>
+                    </button>
+
+                    <button data-action="new-discipline">
+                        <b>▤</b>
+                        <strong>Nova disciplina</strong>
+                        <small>Organize suas matérias</small>
+                    </button>
+
+                    <button data-view="availability">
+                        <b>◴</b>
+                        <strong>Meus horários</strong>
+                        <small>Configure quando pode estudar</small>
+                    </button>
+
+                </div>
+
+            </section>
+
+        </section>
+
+
+        <!-- CRONOGRAMA -->
+        <section class="view" id="schedule">
+
+            <div class="heading">
+
+                <div>
+
+                    <small class="eyebrow">PLANEJAMENTO</small>
+
+                    <h1>Meu cronograma</h1>
+
+                    <p>
+                        Uma rotina possível, organizada
+                        em sessões de foco.
+                    </p>
+
+                </div>
+
+                <button class="primary" data-action="generate">
+                    ✦ Gerar semana
+                </button>
+
+            </div>
+
+
+            <section class="panel">
+
+                <div class="weekbar">
+
+                    <div>
+                        <h2 id="weekTitle">Esta semana</h2>
+                        <p id="weekRange"></p>
+                    </div>
+
+                    <div>
+                        <button class="secondary" id="prev">
+                            ‹
+                        </button>
+
+                        <button class="secondary" id="todayWeek">
+                            Hoje
+                        </button>
+
+                        <button class="secondary" id="next">
+                            ›
+                        </button>
+                    </div>
+
+                </div>
+
+                <div id="scheduleList"></div>
+
+            </section>
+
+        </section>
+
+
+        <!-- PROVAS E TRABALHOS -->
+        <section class="view" id="events">
+
+            <div class="heading">
+
+                <div>
+
+                    <small class="eyebrow">SUAS ENTREGAS</small>
+
+                    <h1>Provas e trabalhos</h1>
+
+                    <p>
+                        Tenha seus prazos e esforço estimado
+                        sempre à vista.
+                    </p>
+
+                </div>
+
+                <button class="primary" data-action="new-event">
+                    ＋ Novo compromisso
+                </button>
+
+            </div>
+
+
+            <section class="panel">
+
+                <h2>Todos os compromissos</h2>
+
+                <div id="eventsList"></div>
+
+            </section>
+
+        </section>
+
+
+        <!-- DISCIPLINAS -->
+        <section class="view" id="disciplines">
+
+            <div class="heading">
+
+                <div>
+
+                    <small class="eyebrow">SEU CONTEÚDO</small>
+
+                    <h1>Disciplinas</h1>
+
+                    <p>
+                        Separe seus estudos por matéria.
+                    </p>
+
+                </div>
+
+                <button class="primary" data-action="new-discipline">
+                    ＋ Nova disciplina
+                </button>
+
+            </div>
+
+
+            <section class="panel">
+
+                <h2>Minhas disciplinas</h2>
+
+                <div id="disciplinesList" class="cards"></div>
+
+            </section>
+
+        </section>
+
+
+        <!-- DISPONIBILIDADE -->
+        <section class="view" id="availability">
+
+            <div class="heading">
+
+                <div>
+
+                    <small class="eyebrow">SUA ROTINA REAL</small>
+
+                    <h1>Disponibilidade</h1>
+
+                    <p>
+                        Informe quando você realmente
+                        consegue estudar.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <section class="panel">
+
+                <h2>Meus horários livres</h2>
+
+                <form id="availabilityForm" class="availability-form">
+
+                    <label>
+                        Dia
+
+                        <select name="dayOfWeek">
+
+                            <option value="1">Segunda-feira</option>
+                            <option value="2">Terça-feira</option>
+                            <option value="3">Quarta-feira</option>
+                            <option value="4">Quinta-feira</option>
+                            <option value="5">Sexta-feira</option>
+                            <option value="6">Sábado</option>
+                            <option value="7">Domingo</option>
+
+                        </select>
+                    </label>
+
+
+                    <label>
+                        Começo
+
+                        <input
+                            name="startTime"
+                            type="time"
+                            value="18:00"
+                            required
+                        >
+                    </label>
+
+
+                    <label>
+                        Fim
+
+                        <input
+                            name="endTime"
+                            type="time"
+                            value="20:00"
+                            required
+                        >
+                    </label>
+
+
+                    <button class="primary">
+                        ＋ Adicionar horário
+                    </button>
+
+                </form>
+
+
+                <div id="availabilityList"></div>
+
+            </section>
+
+        </section>
+
+    </main>
+
+</div>
+
+
+<!-- MODAL DE CADASTRO -->
+<div class="backdrop" id="modal" hidden>
+
+    <section class="dialog">
+
+        <header>
+
+            <div>
+                <small class="eyebrow">STUDYFLOW</small>
+                <h2 id="modalTitle">Cadastro</h2>
+            </div>
+
+            <button id="close" class="secondary">
+                ×
+            </button>
+
+        </header>
+
+
+        <form id="modalForm">
+
+            <div id="fields" class="fields"></div>
+
+            <footer>
+
+                <button
+                    type="button"
+                    class="secondary"
+                    id="cancel"
+                >
+                    Cancelar
+                </button>
+
+                <button class="primary">
+                    Salvar
+                </button>
+
+            </footer>
+
+        </form>
+
+    </section>
+
+</div>
+
+
+<!-- MENSAGENS DO SISTEMA -->
+<div class="toast" id="toast"></div>
+
+
+</body>
+</html>
