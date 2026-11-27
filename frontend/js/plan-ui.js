@@ -91,17 +91,13 @@ export function blockCard(block, { compact = false, index = 0 } = {}) {
   `;
 }
 
-/** The explanation written by the AI (or by the rules when no key is configured). */
+/** The explanation of the plan: how the week looks, what changed and what to watch. */
 export function advisorCard(note, index = 0) {
   if (!note) return "";
-  const fromAi = note.source === "AI";
   return html`
     <section class="card advisor rise" style="--i:${index}" aria-label="Orientador de estudos">
       <header class="advisor__header">
         <span class="advisor__badge">${raw(icon("sparkle", 16))} Orientador</span>
-        <span class="tag ${fromAi ? "tag--accent" : "tag--quiet"}"
-          >${fromAi ? "Escrito por IA" : "Regras automáticas"}</span
-        >
       </header>
       <p class="advisor__summary">${note.summary}</p>
       ${

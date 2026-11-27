@@ -1,9 +1,9 @@
-/** Application shell: routing, navigation and the actions shared by every view. */
+/** Application shell: session, routing, navigation and the actions shared by every view. */
 
-import { api } from "./api.js";
+import { api, setSessionLostHandler } from "./api.js";
 import { html, mount, raw, toast } from "./dom.js";
 import { icon } from "./icons.js";
-import { acceptPlan, loadAll, profile, store, theme } from "./store.js";
+import { acceptPlan, clear, loadAll, store, theme } from "./store.js";
 import { renderAvailability } from "./views/availability.js";
 import { renderDisciplines } from "./views/disciplines.js";
 import { renderEvents } from "./views/events.js";
@@ -36,6 +36,11 @@ const root = document.getElementById("app");
 function currentRoute() {
   const path = location.hash.replace(/^#\//, "");
   return ROUTES.find((route) => route.path === path) ?? ROUTES[0];
+}
+
+function initials(name) {
+  const parts = name.trim().split(/\s+/);
+  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
 }
 
 function shell(route) {
@@ -71,7 +76,13 @@ function shell(route) {
             ${raw(icon("logout"))}
             <span class="nav__label">Sair</span>
           </button>
-          <p class="sidebar__user">${profile.name}</p>
+          <div class="account">
+            <span class="account__avatar" aria-hidden="true">${initials(store.user.name)}</span>
+            <div class="account__text">
+              <strong>${store.user.name}</strong>
+              <span>${store.user.email}</span>
+            </div>
+          </div>
         </div>
       </aside>
       <main id="main" class="main" tabindex="-1"></main>
@@ -81,8 +92,9 @@ function shell(route) {
 
 /** Draws the current route. `animate` is false on data refreshes so the screen does not flicker. */
 function draw({ animate = true } = {}) {
-  if (!profile.name) {
-    renderWelcome(root, { onEnter: start });
+  if (!store.user) {
+    document.title = "StudyFlow · sua semana de estudos, organizada";
+    renderWelcome(root, { onSignedIn: enter });
     return;
   }
   const route = currentRoute();
@@ -106,16 +118,15 @@ async function run(task, successMessage) {
   } catch (error) {
     toast(error.message, "error");
   }
-  draw({ animate: false });
+  if (store.user) draw({ animate: false });
 }
 
 const planActions = {
   generate: () =>
-    run(async () => {
-      const wasGenerated = store.plan.generated;
-      await acceptPlan(await api.plan.generate(store.weekDate ?? undefined));
-      return wasGenerated;
-    }, "Plano atualizado."),
+    run(
+      async () => acceptPlan(await api.plan.generate(store.weekDate ?? undefined)),
+      "Plano atualizado.",
+    ),
   done: (id) =>
     run(async () => api.blocks.setDone(id, true).then(reloadPlan), "Bloco concluído. Boa!"),
   undo: (id) => run(async () => api.blocks.setDone(id, false).then(reloadPlan)),
@@ -148,7 +159,29 @@ const context = {
   },
 };
 
-root.addEventListener("click", (event) => {
+/** Leaves the signed-in area and shows the landing screen again. */
+function leave() {
+  clear();
+  document.getElementById("modal-root").innerHTML = "";
+  document.body.classList.remove("has-modal");
+  history.replaceState(null, "", location.pathname);
+  draw();
+}
+
+/** Called after a successful sign-in or sign-up. */
+async function enter(user) {
+  store.user = user;
+  try {
+    await loadAll();
+  } catch (error) {
+    toast(error.message, "error");
+    return;
+  }
+  if (!location.hash) history.replaceState(null, "", "#/hoje");
+  draw();
+}
+
+root.addEventListener("click", async (event) => {
   const target = event.target.closest("[data-action]");
   if (!target) return;
   const { action, id } = target.dataset;
@@ -156,9 +189,8 @@ root.addEventListener("click", (event) => {
     theme.toggle();
     draw({ animate: false });
   } else if (action === "logout") {
-    profile.name = null;
-    location.hash = "";
-    draw();
+    await api.auth.logout().catch(() => {});
+    leave();
   } else if (planActions[action]) {
     target.disabled = true;
     target.classList.add("is-busy");
@@ -167,21 +199,27 @@ root.addEventListener("click", (event) => {
 });
 
 window.addEventListener("hashchange", () => {
-  if (profile.name) draw();
+  if (!store.user) return;
+  draw();
   document.getElementById("main")?.focus({ preventScroll: true });
   window.scrollTo({ top: 0 });
 });
 
-async function start() {
-  try {
-    await loadAll();
-  } catch (error) {
-    toast(error.message, "error");
+setSessionLostHandler(() => {
+  if (store.user) {
+    leave();
+    toast("Sua sessão terminou. Entre de novo.", "error");
   }
-  if (!location.hash) history.replaceState(null, "", "#/hoje");
-  draw();
+});
+
+/** On load: if the session cookie is still valid go straight in, otherwise show the landing. */
+async function boot() {
+  theme.apply();
+  try {
+    await enter(await api.auth.me());
+  } catch {
+    draw();
+  }
 }
 
-theme.apply();
-if (profile.name) start();
-else draw();
+boot();

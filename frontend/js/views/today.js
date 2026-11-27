@@ -12,7 +12,7 @@ import {
   staleBanner,
   warningsCard,
 } from "../plan-ui.js";
-import { isEmpty, loadAll, profile } from "../store.js";
+import { firstName, isEmpty, loadAll } from "../store.js";
 
 export function renderToday(main, context) {
   const { store } = context;
@@ -39,7 +39,7 @@ export function renderToday(main, context) {
       <header class="page-header rise">
         <div>
           <p class="eyebrow">${longDate(today)}</p>
-          <h1>${greeting()}, ${profile.name}.</h1>
+          <h1>${greeting()}, ${firstName()}.</h1>
         </div>
         ${ready && isCurrentWeek ? generateButton(plan) : ""}
       </header>

@@ -9,6 +9,9 @@ const MESSAGES = {
   BLOCK_NOT_PLANNED: "Esse bloco não está mais planejado.",
   BLOCK_SKIPPED: "Esse bloco foi adiado e não pode ser concluído.",
   NOT_FOUND: "Esse item não existe mais. Atualize a página.",
+  EMAIL_TAKEN: "Já existe uma conta com esse e-mail. Tente entrar.",
+  INVALID_CREDENTIALS: "E-mail ou senha incorretos.",
+  UNAUTHENTICATED: "Sua sessão terminou. Entre de novo.",
   NETWORK: "Não consegui falar com o servidor. Verifique se ele está rodando.",
 };
 
@@ -20,11 +23,19 @@ export class ApiError extends Error {
   }
 }
 
+/** Called when the server says the session is gone, so the app can go back to the sign-in screen. */
+let onSessionLost = () => {};
+
+export function setSessionLostHandler(handler) {
+  onSessionLost = handler;
+}
+
 async function request(method, path, body) {
   let response;
   try {
     response = await fetch(`/api${path}`, {
       method,
+      credentials: "same-origin",
       headers: body === undefined ? undefined : { "Content-Type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
@@ -36,7 +47,9 @@ async function request(method, path, body) {
   }
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new ApiError(payload?.code ?? "UNKNOWN", payload?.fields);
+    const error = new ApiError(payload?.code ?? "UNKNOWN", payload?.fields);
+    if (error.code === "UNAUTHENTICATED") onSessionLost();
+    throw error;
   }
   return payload;
 }
@@ -49,6 +62,12 @@ const crud = (path) => ({
 });
 
 export const api = {
+  auth: {
+    me: () => request("GET", "/auth/me"),
+    register: (data) => request("POST", "/auth/register", data),
+    login: (data) => request("POST", "/auth/login", data),
+    logout: () => request("POST", "/auth/logout"),
+  },
   disciplines: crud("/disciplines"),
   events: crud("/events"),
   availability: crud("/availability"),
@@ -61,5 +80,4 @@ export const api = {
     setLocked: (id, value) => request("PATCH", `/blocks/${id}/locked`, { value }),
     postpone: (id) => request("POST", `/blocks/${id}/postpone`),
   },
-  advisor: () => request("GET", "/advisor"),
 };

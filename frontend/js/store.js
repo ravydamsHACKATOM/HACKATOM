@@ -3,24 +3,24 @@
 import { api } from "./api.js";
 
 export const store = {
+  /** The signed-in student, or null. The session itself lives in an HttpOnly cookie. */
+  user: null,
   disciplines: [],
   events: [],
   windows: [],
   plan: null,
   /** Any day of the week being shown; null means the current week. */
   weekDate: null,
-  aiEnabled: false,
 };
 
 export async function loadAll() {
-  const [disciplines, events, windows, plan, advisor] = await Promise.all([
+  const [disciplines, events, windows, plan] = await Promise.all([
     api.disciplines.list(),
     api.events.list(),
     api.availability.list(),
     api.plan.get(store.weekDate),
-    api.advisor(),
   ]);
-  Object.assign(store, { disciplines, events, windows, plan, aiEnabled: advisor.ai });
+  Object.assign(store, { disciplines, events, windows, plan });
 }
 
 /** Replaces the plan with a fresh server answer and refreshes event progress alongside it. */
@@ -29,22 +29,27 @@ export async function acceptPlan(plan) {
   store.events = await api.events.list();
 }
 
+export function clear() {
+  Object.assign(store, {
+    user: null,
+    disciplines: [],
+    events: [],
+    windows: [],
+    plan: null,
+    weekDate: null,
+  });
+}
+
 export function isEmpty() {
   return !store.disciplines.length && !store.events.length && !store.windows.length;
 }
 
-const PROFILE_KEY = "studyflow.profile";
-const THEME_KEY = "studyflow.theme";
+/** First name, for greetings. */
+export function firstName() {
+  return store.user?.name.trim().split(/\s+/)[0] ?? "";
+}
 
-export const profile = {
-  get name() {
-    return localStorage.getItem(PROFILE_KEY);
-  },
-  set name(value) {
-    if (value) localStorage.setItem(PROFILE_KEY, value);
-    else localStorage.removeItem(PROFILE_KEY);
-  },
-};
+const THEME_KEY = "studyflow.theme";
 
 export const theme = {
   get current() {
