@@ -10,15 +10,17 @@ import {
   raw,
   showFieldErrors,
   toast,
+  withBusy,
 } from "../dom.js";
 import { plural } from "../format.js";
+import { choiceCards, formFooter, panel } from "../forms.js";
 import { DISCIPLINE_COLORS, DISCIPLINE_ICONS, disciplineIcon, icon } from "../icons.js";
 import { emptyState } from "./today.js";
 
 const WEIGHTS = [
-  { value: 1, label: "Leve" },
-  { value: 2, label: "Normal" },
-  { value: 3, label: "Pesada" },
+  { value: 1, label: "Leve", hint: "Cede a vez no empate.", icon: "weightLow" },
+  { value: 2, label: "Normal", hint: "Sem preferência.", icon: "weightMid" },
+  { value: 3, label: "Pesada", hint: "Vem primeiro no empate.", icon: "weightHigh" },
 ];
 
 export function renderDisciplines(main, context) {
@@ -125,117 +127,144 @@ function openForm(context, discipline) {
   const editing = Boolean(discipline);
   const selectedIcon = discipline?.icon ?? "book";
   const selectedColor = (discipline?.color ?? DISCIPLINE_COLORS[0]).toUpperCase();
-  const selectedWeight = discipline?.weight ?? 2;
 
   modal({
     title: editing ? "Editar disciplina" : "Nova disciplina",
+    subtitle: "O ícone e a cor ajudam a reconhecer a matéria no plano.",
+    art: html`<span class="modal__preview" data-preview style="--tone:${selectedColor}">
+      ${raw(disciplineIcon(selectedIcon, 34))}
+    </span>`.value,
+    tone: "accent",
     body: html`
       <form class="form" novalidate>
-        <div class="field">
-          <label for="discipline-name">Nome</label>
-          <input
-            id="discipline-name"
-            class="input"
-            name="name"
-            type="text"
-            maxlength="60"
-            required
-            autofocus
-            placeholder="Ex.: Banco de Dados"
-            value="${discipline?.name ?? ""}"
-          />
-        </div>
-        <fieldset class="field">
-          <legend>Ícone</legend>
-          <div class="picker picker--icons">
-            ${DISCIPLINE_ICONS.map(
-              (option) => html`
-                <label title="${option.label}">
-                  <input
-                    type="radio"
-                    name="icon"
-                    value="${option.key}"
-                    ${option.key === selectedIcon ? raw("checked") : ""}
-                  />
-                  <span>${raw(disciplineIcon(option.key, 40))}</span>
-                  <span class="visually-hidden">${option.label}</span>
-                </label>
-              `,
-            )}
-          </div>
-        </fieldset>
-        <fieldset class="field">
-          <legend>Cor</legend>
-          <div class="picker picker--colors">
-            ${DISCIPLINE_COLORS.map(
-              (color) => html`
-                <label>
-                  <input
-                    type="radio"
-                    name="color"
-                    value="${color}"
-                    ${color === selectedColor ? raw("checked") : ""}
-                  />
-                  <span style="--swatch:${color}"></span>
-                  <span class="visually-hidden">Cor ${color}</span>
-                </label>
-              `,
-            )}
-          </div>
-        </fieldset>
-        <fieldset class="field">
-          <legend>Peso</legend>
-          <div class="segmented">
-            ${WEIGHTS.map(
-              (weight) => html`
-                <label>
-                  <input
-                    type="radio"
-                    name="weight"
-                    value="${weight.value}"
-                    ${weight.value === selectedWeight ? raw("checked") : ""}
-                  />
-                  <span>${weight.label}</span>
-                </label>
-              `,
-            )}
-          </div>
-          <p class="field__hint">
-            Quando dois prazos caem no mesmo dia, a mais pesada vem primeiro.
-          </p>
-        </fieldset>
-        <div class="form-actions">
-          <button class="button button--ghost" type="button" data-close>Cancelar</button>
-          <button class="button button--primary" type="submit">
-            ${editing ? "Salvar" : "Adicionar"}
-          </button>
-        </div>
+        ${panel(
+          { icon: "edit", title: "Nome", index: 0 },
+          html`
+            <div class="field">
+              <label class="visually-hidden" for="discipline-name">Nome da disciplina</label>
+              <input
+                id="discipline-name"
+                class="input"
+                name="name"
+                type="text"
+                maxlength="60"
+                required
+                autofocus
+                autocomplete="off"
+                placeholder="Ex.: Banco de Dados"
+                value="${discipline?.name ?? ""}"
+              />
+            </div>
+          `,
+        )}
+        ${panel(
+          { icon: "sparkle", title: "Ícone", index: 1 },
+          html`
+            <fieldset class="picker picker--icons">
+              <legend class="visually-hidden">Ícone da disciplina</legend>
+              ${DISCIPLINE_ICONS.map(
+                (option) => html`
+                  <label title="${option.label}">
+                    <input
+                      type="radio"
+                      name="icon"
+                      value="${option.key}"
+                      ${option.key === selectedIcon ? raw("checked") : ""}
+                    />
+                    <span class="picker__tile">${raw(disciplineIcon(option.key, 38))}</span>
+                    <span class="visually-hidden">${option.label}</span>
+                  </label>
+                `,
+              )}
+            </fieldset>
+          `,
+        )}
+        ${panel(
+          { icon: "palette", title: "Cor", index: 2 },
+          html`
+            <fieldset class="picker picker--colors">
+              <legend class="visually-hidden">Cor da disciplina</legend>
+              ${DISCIPLINE_COLORS.map(
+                (color) => html`
+                  <label>
+                    <input
+                      type="radio"
+                      name="color"
+                      value="${color}"
+                      ${color === selectedColor ? raw("checked") : ""}
+                    />
+                    <span class="picker__swatch" style="--swatch:${color}">
+                      ${raw(icon("check", 14))}
+                    </span>
+                    <span class="visually-hidden">Cor ${color}</span>
+                  </label>
+                `,
+              )}
+            </fieldset>
+          `,
+        )}
+        ${panel(
+          { icon: "weightHigh", title: "Peso", hint: "desempata prazos no mesmo dia", index: 3 },
+          choiceCards({
+            name: "weight",
+            legend: "Peso da disciplina",
+            options: WEIGHTS,
+            value: discipline?.weight ?? 2,
+            layout: "stack",
+          }),
+        )}
+        ${formFooter(editing ? "Salvar" : "Adicionar disciplina")}
       </form>
     `,
     onMount(dialog, close) {
       const form = dialog.querySelector("form");
+      const preview = dialog.querySelector("[data-preview]");
+
+      // The header badge previews the chosen icon and color as the student picks them.
+      form.addEventListener("change", (event) => {
+        if (event.target.name === "icon") {
+          preview.innerHTML = disciplineIcon(event.target.value, 34);
+        } else if (event.target.name === "color") {
+          preview.style.setProperty("--tone", event.target.value);
+        } else {
+          return;
+        }
+        preview.classList.remove("is-bumped");
+        void preview.offsetWidth;
+        preview.classList.add("is-bumped");
+      });
+
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
-        if (!form.reportValidity()) return;
         const values = formValues(form);
+        if (!values.name.trim()) {
+          showFieldErrors(form, { name: "Dê um nome para a disciplina." });
+          return;
+        }
+        showFieldErrors(form, {});
         const payload = {
           name: values.name,
           icon: values.icon,
           color: values.color,
           weight: Number(values.weight),
         };
-        try {
-          if (editing) await api.disciplines.update(discipline.id, payload);
-          else await api.disciplines.create(payload);
-          close();
-          toast(editing ? "Disciplina atualizada." : "Disciplina adicionada.", "success");
-          await context.refresh();
-        } catch (error) {
-          if (error instanceof ApiError && error.code === "VALIDATION_FAILED") {
-            showFieldErrors(form, error.fields);
+        await withBusy(form.querySelector('[type="submit"]'), async () => {
+          try {
+            if (editing) await api.disciplines.update(discipline.id, payload);
+            else await api.disciplines.create(payload);
+            close();
+            toast(editing ? "Disciplina atualizada." : "Disciplina adicionada.", "success");
+            await context.refresh();
+          } catch (error) {
+            if (error instanceof ApiError && error.code === "VALIDATION_FAILED") {
+              showFieldErrors(
+                form,
+                Object.fromEntries(Object.keys(error.fields).map((name) => [name, ""])),
+              );
+            }
+            toast(error.message, "error");
           }
-          toast(error.message, "error");
-        }
+        });
       });
     },
   });

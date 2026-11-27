@@ -10,9 +10,12 @@ import {
   raw,
   showFieldErrors,
   toast,
+  withBusy,
 } from "../dom.js";
-import { deadline, duration, longDate } from "../format.js";
+import { addDays, deadline, duration, longDate, plural } from "../format.js";
+import { bump, chips, choiceCards, enhanceSteppers, formFooter, panel, stepper } from "../forms.js";
 import { disciplineIcon, icon } from "../icons.js";
+import { enhanceSelects, richSelect } from "../select.js";
 import { emptyState, progressBar } from "./today.js";
 
 export function renderEvents(main, context) {
@@ -164,134 +167,231 @@ function eventCard(event, today, index, late = new Set()) {
   `;
 }
 
+const TYPES = [
+  {
+    value: "EXAM",
+    label: "Prova",
+    hint: "O estudo termina na véspera.",
+    icon: "exam",
+    tone: "var(--terracotta)",
+  },
+  {
+    value: "ASSIGNMENT",
+    label: "Entrega",
+    hint: "Dá para trabalhar até o próprio dia.",
+    icon: "assignment",
+    tone: "var(--blue)",
+  },
+];
+
 function openForm(context, event) {
   const { store } = context;
+  const today = store.plan.today;
   const editing = Boolean(event);
+  const disciplineOptions = store.disciplines.map((discipline) => {
+    const count = store.events.filter((item) => item.disciplineId === discipline.id).length;
+    return {
+      value: discipline.id,
+      label: discipline.name,
+      hint: count ? plural(count, "prazo cadastrado", "prazos cadastrados") : "Nenhum prazo ainda",
+      art: disciplineIcon(discipline.icon, 30),
+      tone: discipline.color,
+    };
+  });
+
   modal({
     title: editing ? "Editar prazo" : "Novo prazo",
+    subtitle: editing
+      ? "Mudou a data ou a estimativa? O plano se ajusta depois."
+      : "Uma prova ou entrega que você precisa se preparar.",
+    icon: "events",
+    tone: "terracotta",
     body: html`
       <form class="form" novalidate>
-        <div class="field">
-          <label for="event-title">O que é?</label>
-          <input
-            id="event-title"
-            class="input"
-            name="title"
-            type="text"
-            maxlength="80"
-            required
-            autofocus
-            placeholder="Ex.: Prova de SQL"
-            value="${event?.title ?? ""}"
-          />
-        </div>
-        <div class="field">
-          <label for="event-discipline">Disciplina</label>
-          <select id="event-discipline" class="input" name="disciplineId" required>
-            ${store.disciplines.map(
-              (discipline) =>
-                html`<option
-                  value="${discipline.id}"
-                  ${event?.disciplineId === discipline.id ? raw("selected") : ""}
-                >
-                  ${discipline.name}
-                </option>`,
+        ${panel(
+          { icon: "edit", title: "O que é", index: 0 },
+          html`
+            <div class="field">
+              <label for="event-title">Nome</label>
+              <input
+                id="event-title"
+                class="input"
+                name="title"
+                type="text"
+                maxlength="80"
+                required
+                autofocus
+                autocomplete="off"
+                placeholder="Ex.: Prova de SQL"
+                value="${event?.title ?? ""}"
+              />
+            </div>
+            <div class="field">
+              <label for="event-discipline">Disciplina</label>
+              ${richSelect({
+                name: "disciplineId",
+                id: "event-discipline",
+                options: disciplineOptions,
+                value: event?.disciplineId ?? disciplineOptions[0].value,
+              })}
+            </div>
+          `,
+        )}
+        ${panel(
+          { icon: "events", title: "Tipo", index: 1 },
+          choiceCards({
+            name: "type",
+            legend: "Tipo de prazo",
+            options: TYPES,
+            value: event?.type ?? "EXAM",
+          }),
+        )}
+        ${panel(
+          { icon: "week", title: "Quando", hint: html`<span data-when></span>`, index: 2 },
+          html`
+            <div class="field">
+              <label class="visually-hidden" for="event-date">Data</label>
+              <input
+                id="event-date"
+                class="input"
+                name="dueDate"
+                type="date"
+                required
+                value="${event?.dueDate ?? addDays(today, 7)}"
+              />
+            </div>
+            ${chips(
+              [
+                { value: 1, label: "Amanhã" },
+                { value: 3, label: "Em 3 dias" },
+                { value: 7, label: "Em 1 semana" },
+                { value: 14, label: "Em 2 semanas" },
+              ],
+              "date",
             )}
-          </select>
-        </div>
-        <fieldset class="field">
-          <legend>Tipo</legend>
-          <div class="segmented">
-            <label>
-              <input
-                type="radio"
-                name="type"
-                value="EXAM"
-                ${event?.type !== "ASSIGNMENT" ? raw("checked") : ""}
-              />
-              <span>Prova</span>
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="type"
-                value="ASSIGNMENT"
-                ${event?.type === "ASSIGNMENT" ? raw("checked") : ""}
-              />
-              <span>Entrega</span>
-            </label>
-          </div>
-          <p class="field__hint">
-            Para provas o estudo termina na véspera. Entregas podem usar o próprio dia.
-          </p>
-        </fieldset>
-        <div class="field-row">
-          <div class="field">
-            <label for="event-date">Data</label>
-            <input
-              id="event-date"
-              class="input"
-              name="dueDate"
-              type="date"
-              required
-              value="${event?.dueDate ?? ""}"
-            />
-          </div>
-          <div class="field">
-            <label for="event-effort">Horas de estudo</label>
-            <input
-              id="event-effort"
-              class="input"
-              name="effortHours"
-              type="number"
-              min="0.5"
-              max="80"
-              step="0.5"
-              required
-              inputmode="decimal"
-              value="${event ? event.effortMinutes / 60 : 2}"
-            />
-          </div>
-        </div>
-        <div class="field">
-          <label for="event-notes">Anotações <span class="field__optional">opcional</span></label>
-          <textarea id="event-notes" class="input" name="notes" rows="2" maxlength="500">
+          `,
+        )}
+        ${panel(
+          {
+            icon: "availability",
+            title: "Quanto estudo ela pede",
+            hint: html`<span data-sessions></span>`,
+            index: 3,
+          },
+          html`
+            <div class="field">
+              <label class="visually-hidden" for="event-effort">Horas de estudo</label>
+              ${stepper({
+                id: "event-effort",
+                name: "effortHours",
+                value: event ? event.effortMinutes / 60 : 2,
+                min: 0.5,
+                max: 80,
+                step: 0.5,
+                unit: "horas",
+              })}
+            </div>
+            ${chips(
+              [
+                { value: 1, label: "1h" },
+                { value: 2, label: "2h" },
+                { value: 4, label: "4h" },
+                { value: 8, label: "8h" },
+              ],
+              "effort",
+            )}
+          `,
+        )}
+        ${panel(
+          { icon: "note", title: "Anotações", hint: "opcional", index: 4 },
+          html`
+            <div class="field">
+              <label class="visually-hidden" for="event-notes">Anotações</label>
+              <textarea
+                id="event-notes"
+                class="input"
+                name="notes"
+                rows="2"
+                maxlength="500"
+                placeholder="Capítulos, sala, o que não pode esquecer…"
+              >
 ${event?.notes ?? ""}</textarea>
-        </div>
-        <div class="form-actions">
-          <button class="button button--ghost" type="button" data-close>Cancelar</button>
-          <button class="button button--primary" type="submit">
-            ${editing ? "Salvar" : "Adicionar"}
-          </button>
-        </div>
+            </div>
+          `,
+        )}
+        ${formFooter(editing ? "Salvar" : "Adicionar prazo")}
       </form>
     `,
     onMount(dialog, close) {
       const form = dialog.querySelector("form");
+      const date = form.elements.dueDate;
+      const effort = form.elements.effortHours;
+      const when = dialog.querySelector("[data-when]");
+      const sessions = dialog.querySelector("[data-sessions]");
+
+      const describe = () => {
+        when.textContent = date.value ? deadline(today, date.value) : "";
+        const minutes = Math.round((Number(effort.value) || 0) * 60);
+        sessions.textContent = minutes
+          ? `cerca de ${plural(Math.ceil(minutes / 50), "sessão", "sessões")}`
+          : "";
+      };
+
+      enhanceSelects(dialog);
+      enhanceSteppers(dialog, describe);
+      date.addEventListener("input", describe);
+      dialog.addEventListener("click", (clickEvent) => {
+        const chip = clickEvent.target.closest("[data-chip]");
+        if (!chip) return;
+        const group = chip.closest("[data-chips]").dataset.chips;
+        if (group === "date") {
+          date.value = addDays(today, Number(chip.dataset.chip));
+          bump(date);
+        } else {
+          effort.value = chip.dataset.chip;
+          bump(effort.closest(".stepper"));
+        }
+        describe();
+      });
+      describe();
+
       form.addEventListener("submit", async (submitEvent) => {
         submitEvent.preventDefault();
-        if (!form.reportValidity()) return;
         const values = formValues(form);
+        const problems = {};
+        if (!values.title.trim()) problems.title = "Dê um nome para o prazo.";
+        if (!values.dueDate) problems.dueDate = "Escolha a data.";
+        if (!(Number(values.effortHours) >= 0.5)) {
+          problems.effortHours = "Informe pelo menos meia hora.";
+        }
+        showFieldErrors(form, problems);
+        if (Object.keys(problems).length) return;
+
         const payload = {
           title: values.title,
           disciplineId: Number(values.disciplineId),
           type: values.type,
           dueDate: values.dueDate,
           effortHours: Number(values.effortHours),
-          notes: values.notes || null,
+          notes: values.notes.trim() || null,
         };
-        try {
-          if (editing) await api.events.update(event.id, payload);
-          else await api.events.create(payload);
-          close();
-          toast(editing ? "Prazo atualizado." : "Prazo adicionado.", "success");
-          await context.refresh();
-        } catch (error) {
-          if (error instanceof ApiError && error.code === "VALIDATION_FAILED") {
-            showFieldErrors(form, error.fields);
+        await withBusy(form.querySelector('[type="submit"]'), async () => {
+          try {
+            if (editing) await api.events.update(event.id, payload);
+            else await api.events.create(payload);
+            close();
+            toast(editing ? "Prazo atualizado." : "Prazo adicionado.", "success");
+            await context.refresh();
+          } catch (error) {
+            if (error instanceof ApiError && error.code === "VALIDATION_FAILED") {
+              showFieldErrors(
+                form,
+                Object.fromEntries(Object.keys(error.fields).map((name) => [name, ""])),
+              );
+            }
+            toast(error.message, "error");
           }
-          toast(error.message, "error");
-        }
+        });
       });
     },
   });

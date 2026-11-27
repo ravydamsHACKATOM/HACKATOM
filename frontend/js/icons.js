@@ -26,6 +26,23 @@ const PATHS = {
   sun: '<circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M5 5l1.8 1.8M17.2 17.2 19 19M5 19l1.8-1.8M17.2 6.8 19 5"/>',
   arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   logout: '<path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4M15 8l4 4-4 4M9 12h10"/>',
+  chevron: '<path d="m6 9 6 6 6-6"/>',
+  minus: '<path d="M5 12h14"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/>',
+  eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff:
+    '<path d="M4 4l16 16"/><path d="M9.9 5.2A9.5 9.5 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3 3.9M6.3 6.6C3.6 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 4-.9"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+  exam: '<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="m9 14 2 2 4-4"/>',
+  assignment:
+    '<path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M12 10v6M9 13l3 3 3-3"/>',
+  note: '<path d="M5 4h14v11l-5 5H5z"/><path d="M14 20v-5h5M8 9h8M8 13h4"/>',
+  palette:
+    '<path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 2-2 0-1.6 1.2-2 2.5-2H18a3 3 0 0 0 3-3c0-6-4-11-9-11z"/><circle cx="7.5" cy="12" r="1"/><circle cx="10" cy="7.5" r="1"/><circle cx="15" cy="7.5" r="1"/>',
+  weightLow:
+    '<path d="M5 20v-4"/><path d="M12 20v-4" opacity=".3"/><path d="M19 20v-4" opacity=".3"/>',
+  weightMid: '<path d="M5 20v-4"/><path d="M12 20v-9"/><path d="M19 20v-9" opacity=".3"/>',
+  weightHigh: '<path d="M5 20v-4"/><path d="M12 20v-9"/><path d="M19 20V6"/>',
 };
 
 export function icon(name, size = 20) {

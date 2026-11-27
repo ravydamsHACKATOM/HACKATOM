@@ -1,16 +1,24 @@
 /** Weekly windows in which the student can really study. */
 
 import { api } from "../api.js";
-import { formValues, html, modal, mount, raw, toast } from "../dom.js";
-import { duration, time, WEEKDAYS } from "../format.js";
+import { formValues, html, modal, mount, raw, toast, withBusy } from "../dom.js";
+import { duration, plural, time, WEEKDAYS } from "../format.js";
+import { bump, chips, choiceCards, formFooter, panel } from "../forms.js";
 import { icon } from "../icons.js";
 import { emptyState } from "./today.js";
 
-const minutesOf = (window) => {
-  const [startHour, startMinute] = window.startTime.split(":").map(Number);
-  const [endHour, endMinute] = window.endTime.split(":").map(Number);
-  return endHour * 60 + endMinute - (startHour * 60 + startMinute);
+const toMinutes = (value) => {
+  const [hour, minute] = value.split(":").map(Number);
+  return hour * 60 + minute;
 };
+
+const minutesOf = (window) => toMinutes(window.endTime) - toMinutes(window.startTime);
+
+const PRESETS = [
+  { value: "08:00-12:00", label: "Manhã" },
+  { value: "14:00-18:00", label: "Tarde" },
+  { value: "19:00-22:00", label: "Noite" },
+];
 
 export function renderAvailability(main, context) {
   const { store } = context;
@@ -95,7 +103,7 @@ export function renderAvailability(main, context) {
   main
     .querySelectorAll("[data-new]")
     .forEach((button) =>
-      button.addEventListener("click", () => openForm(context, button.dataset.new || "MONDAY")),
+      button.addEventListener("click", () => openForm(context, button.dataset.new)),
     );
   main.querySelector("[data-preset]")?.addEventListener("click", () =>
     context.run(async () => {
@@ -120,75 +128,165 @@ export function renderAvailability(main, context) {
 function openForm(context, day) {
   modal({
     title: "Novo horário livre",
+    subtitle: "Escolha um ou mais dias e o intervalo em que você consegue estudar.",
+    icon: "availability",
+    tone: "mustard",
     body: html`
       <form class="form" novalidate>
-        <div class="field">
-          <label for="window-day">Dia da semana</label>
-          <select id="window-day" class="input" name="dayOfWeek" autofocus>
-            ${WEEKDAYS.map(
-              (weekday) =>
-                html`<option value="${weekday.key}" ${weekday.key === day ? raw("selected") : ""}>
-                  ${weekday.long}
-                </option>`,
+        ${panel(
+          { icon: "week", title: "Dias", hint: html`<span data-days></span>`, index: 0 },
+          html`
+            ${choiceCards({
+              name: "days",
+              legend: "Dias da semana",
+              options: WEEKDAYS.map((weekday) => ({ value: weekday.key, label: weekday.short })),
+              value: day ? [day] : [],
+              multiple: true,
+              layout: "days",
+            })}
+            ${chips(
+              [
+                { value: "weekdays", label: "Segunda a sexta" },
+                { value: "weekend", label: "Fim de semana" },
+                { value: "all", label: "Todos" },
+              ],
+              "days",
             )}
-          </select>
-        </div>
-        <div class="field-row">
-          <div class="field">
-            <label for="window-start">Das</label>
-            <input
-              id="window-start"
-              class="input"
-              name="startTime"
-              type="time"
-              value="19:00"
-              required
-            />
-          </div>
-          <div class="field">
-            <label for="window-end">Até</label>
-            <input
-              id="window-end"
-              class="input"
-              name="endTime"
-              type="time"
-              value="22:00"
-              required
-            />
-          </div>
-        </div>
-        <p class="field__hint">
-          O plano usa sessões de até 50 minutos com 10 de pausa. O mínimo é 25 minutos.
-        </p>
-        <div class="form-actions">
-          <button class="button button--ghost" type="button" data-close>Cancelar</button>
-          <button class="button button--primary" type="submit">Adicionar</button>
-        </div>
+          `,
+        )}
+        ${panel(
+          {
+            icon: "availability",
+            title: "Intervalo",
+            hint: html`<span data-length></span>`,
+            index: 1,
+          },
+          html`
+            <div class="time-range">
+              <div class="field">
+                <label for="window-start">Das</label>
+                <input
+                  id="window-start"
+                  class="input input--time"
+                  name="startTime"
+                  type="time"
+                  value="19:00"
+                  required
+                />
+              </div>
+              <span class="time-range__arrow" aria-hidden="true">${raw(icon("arrow", 18))}</span>
+              <div class="field">
+                <label for="window-end">Até</label>
+                <input
+                  id="window-end"
+                  class="input input--time"
+                  name="endTime"
+                  type="time"
+                  value="22:00"
+                  required
+                />
+              </div>
+            </div>
+            ${chips(PRESETS, "range")}
+            <p class="form__error" data-error role="alert" hidden></p>
+          `,
+        )}
+        ${formFooter("Adicionar horário")}
       </form>
     `,
     onMount(dialog, close) {
       const form = dialog.querySelector("form");
+      const start = form.elements.startTime;
+      const end = form.elements.endTime;
+      const dayInputs = [...form.querySelectorAll('input[name="days"]')];
+      const daysLabel = dialog.querySelector("[data-days]");
+      const lengthLabel = dialog.querySelector("[data-length]");
+      const errorLabel = dialog.querySelector("[data-error]");
+
+      const fail = (message) => {
+        errorLabel.textContent = message;
+        errorLabel.hidden = !message;
+      };
+
+      const describe = () => {
+        const count = dayInputs.filter((input) => input.checked).length;
+        daysLabel.textContent = count ? plural(count, "dia", "dias") : "nenhum dia";
+        const minutes =
+          start.value && end.value ? toMinutes(end.value) - toMinutes(start.value) : 0;
+        if (minutes >= 25) {
+          const sessions = Math.floor((minutes + 10) / 60) || 1;
+          lengthLabel.textContent = `${duration(minutes)} · ${plural(sessions, "sessão", "sessões")}`;
+        } else {
+          lengthLabel.textContent = "mínimo de 25 min";
+        }
+        fail("");
+      };
+
+      form.addEventListener("input", describe);
+      dialog.addEventListener("click", (event) => {
+        const chip = event.target.closest("[data-chip]");
+        if (!chip) return;
+        const { chip: value } = chip.dataset;
+        if (chip.closest("[data-chips]").dataset.chips === "days") {
+          dayInputs.forEach((input, index) => {
+            input.checked = value === "all" || (value === "weekdays" ? index < 5 : index >= 5);
+          });
+        } else {
+          [start.value, end.value] = value.split("-");
+          bump(dialog.querySelector(".time-range"));
+        }
+        describe();
+      });
+      describe();
+
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
-        if (!form.reportValidity()) return;
         const values = formValues(form);
-        if (values.endTime <= values.startTime) {
-          toast("O horário final precisa ser depois do inicial.", "error");
-          return;
+        const days = dayInputs.filter((input) => input.checked).map((input) => input.value);
+        if (!days.length) return fail("Escolha pelo menos um dia.");
+        if (!values.startTime || !values.endTime) return fail("Informe o início e o fim.");
+        if (toMinutes(values.endTime) - toMinutes(values.startTime) < 25) {
+          return fail("O horário precisa ter pelo menos 25 minutos.");
         }
-        try {
-          await api.availability.create(values);
-          close();
-          toast("Horário adicionado.", "success");
-          await context.refresh();
-        } catch (error) {
-          toast(
-            error.code === "VALIDATION_FAILED"
-              ? "O horário precisa ter pelo menos 25 minutos."
-              : error.message,
-            "error",
+
+        await withBusy(form.querySelector('[type="submit"]'), async () => {
+          // Each day is saved on its own, so one overlapping day does not block the others.
+          const results = await Promise.allSettled(
+            days.map((dayOfWeek) =>
+              api.availability.create({
+                dayOfWeek,
+                startTime: values.startTime,
+                endTime: values.endTime,
+              }),
+            ),
           );
-        }
+          const failed = results.filter((result) => result.status === "rejected");
+          const saved = results.length - failed.length;
+          if (saved) await context.refresh();
+          if (!failed.length) {
+            close();
+            toast(
+              saved === 1 ? "Horário adicionado." : `${saved} horários adicionados.`,
+              "success",
+            );
+            return;
+          }
+          const overlapping = days
+            .filter((_, index) => results[index].status === "rejected")
+            .map((key) => WEEKDAYS.find((weekday) => weekday.key === key).long.toLowerCase());
+          fail(
+            failed[0].reason.code === "AVAILABILITY_OVERLAP"
+              ? `Já existe um horário nesse intervalo em: ${overlapping.join(", ")}.`
+              : failed[0].reason.message,
+          );
+          // Keep only the days that still need fixing selected.
+          dayInputs.forEach((input) => {
+            input.checked =
+              days.includes(input.value) && overlapping.length > 0
+                ? results[days.indexOf(input.value)].status === "rejected"
+                : false;
+          });
+        });
       });
     },
   });
