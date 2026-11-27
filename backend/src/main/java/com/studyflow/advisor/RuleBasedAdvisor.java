@@ -13,8 +13,8 @@ import java.util.Locale;
 import org.springframework.stereotype.Component;
 
 /**
- * Explains the plan with fixed rules. It is the fallback when no AI key is configured or the AI
- * call fails, so the app always has something useful to say. User-facing text is in Portuguese.
+ * Explains the plan with fixed rules: how the week looks, what changed and what to watch.
+ * User-facing text is in Portuguese.
  */
 @Component
 public class RuleBasedAdvisor implements PlanAdvisor {
@@ -26,7 +26,7 @@ public class RuleBasedAdvisor implements PlanAdvisor {
 
   @Override
   public AdvisorNote advise(AdvisorContext context) {
-    return new AdvisorNote(summary(context), tips(context), AdvisorNote.SOURCE_RULES);
+    return new AdvisorNote(summary(context), tips(context));
   }
 
   private static String summary(AdvisorContext context) {

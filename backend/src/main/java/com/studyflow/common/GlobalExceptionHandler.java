@@ -1,5 +1,6 @@
 package com.studyflow.common;
 
+import com.studyflow.auth.InvalidCredentialsException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -27,6 +28,11 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(NoResourceFoundException.class)
   ResponseEntity<ApiError> noResource(NoResourceFoundException ex) {
     return respond(HttpStatus.NOT_FOUND, ApiError.of("NOT_FOUND", "Resource not found"));
+  }
+
+  @ExceptionHandler(InvalidCredentialsException.class)
+  ResponseEntity<ApiError> invalidCredentials(InvalidCredentialsException ex) {
+    return respond(HttpStatus.UNAUTHORIZED, ApiError.of("INVALID_CREDENTIALS", ex.getMessage()));
   }
 
   @ExceptionHandler(BusinessRuleException.class)

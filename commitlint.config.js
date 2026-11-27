@@ -13,6 +13,7 @@ export default {
       [
         "backend",
         "frontend",
+        "auth",
         "scheduler",
         "plan",
         "ai",

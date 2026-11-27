@@ -11,13 +11,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.Cookie;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -27,17 +27,15 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 /**
  * Drives the real application through HTTP against a throwaway SQLite file, with the clock frozen
  * on Monday 2026-11-23 at 08:00 so the generated schedule is predictable.
  */
 @SpringBootTest(
-    properties = {
-      "spring.datasource.url=jdbc:sqlite:target/studyflow-test-${random.uuid}.db",
-      "studyflow.ai.api-key="
-    })
-@AutoConfigureMockMvc
+    properties = {"spring.datasource.url=jdbc:sqlite:target/studyflow-test-${random.uuid}.db"})
 class StudyFlowApiTest {
 
   private static final ZoneId ZONE = ZoneId.of("America/Sao_Paulo");
@@ -52,18 +50,33 @@ class StudyFlowApiTest {
     }
   }
 
-  @Autowired private MockMvc mvc;
+  @Autowired private WebApplicationContext context;
   @Autowired private ObjectMapper json;
   @Autowired private JdbcClient jdbc;
 
+  /** Sends the session cookie of a freshly registered student on every request. */
+  private MockMvc mvc;
+
   @BeforeEach
-  void cleanDatabase() {
+  void signInAsNewStudent() throws Exception {
     for (String table :
         new String[] {
-          "study_blocks", "study_events", "availability_windows", "disciplines", "plan_notes"
+          "study_blocks",
+          "study_events",
+          "availability_windows",
+          "disciplines",
+          "plan_notes",
+          "data_revision",
+          "sessions",
+          "users"
         }) {
       jdbc.sql("DELETE FROM " + table).update();
     }
+    Cookie session = TestAccounts.register(context, "ana@example.com");
+    mvc =
+        MockMvcBuilders.webAppContextSetup(context)
+            .defaultRequest(get("/").cookie(session))
+            .build();
   }
 
   @Test
@@ -91,7 +104,6 @@ class StudyFlowApiTest {
     assertThat(plan.at("/blocks/2/kind").asText()).isEqualTo("REVIEW");
     assertThat(plan.at("/stats/plannedMinutes").asInt()).isEqualTo(150);
     assertThat(plan.get("warnings")).isEmpty();
-    assertThat(plan.at("/note/source").asText()).isEqualTo("RULES");
     assertThat(plan.at("/note/summary").asText()).contains("2h30");
   }
 

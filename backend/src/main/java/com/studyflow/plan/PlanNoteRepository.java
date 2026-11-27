@@ -28,33 +28,32 @@ public class PlanNoteRepository {
     this.json = json;
   }
 
-  public Optional<StoredNote> find(LocalDate weekStart) {
+  public Optional<StoredNote> find(long userId, LocalDate weekStart) {
     return jdbc.sql(
-            "SELECT summary, tips, source, data_revision FROM plan_notes"
-                + " WHERE week_start = :weekStart")
+            "SELECT summary, tips, data_revision FROM plan_notes"
+                + " WHERE user_id = :userId AND week_start = :weekStart")
+        .param("userId", userId)
         .param("weekStart", weekStart.toString())
         .query(
             (rs, rowNum) ->
                 new StoredNote(
-                    new AdvisorNote(
-                        rs.getString("summary"),
-                        readTips(rs.getString("tips")),
-                        rs.getString("source")),
+                    new AdvisorNote(rs.getString("summary"), readTips(rs.getString("tips"))),
                     rs.getLong("data_revision")))
         .optional();
   }
 
-  public void save(LocalDate weekStart, AdvisorNote note, long dataRevision, LocalDateTime now) {
+  public void save(
+      long userId, LocalDate weekStart, AdvisorNote note, long dataRevision, LocalDateTime now) {
     jdbc.sql(
-            "INSERT INTO plan_notes (week_start, summary, tips, source, created_at, data_revision)"
-                + " VALUES (:weekStart, :summary, :tips, :source, :createdAt, :revision)"
-                + " ON CONFLICT (week_start) DO UPDATE SET summary = excluded.summary,"
-                + " tips = excluded.tips, source = excluded.source,"
-                + " created_at = excluded.created_at, data_revision = excluded.data_revision")
+            "INSERT INTO plan_notes (user_id, week_start, summary, tips, created_at, data_revision)"
+                + " VALUES (:userId, :weekStart, :summary, :tips, :createdAt, :revision)"
+                + " ON CONFLICT (user_id, week_start) DO UPDATE SET summary = excluded.summary,"
+                + " tips = excluded.tips, created_at = excluded.created_at,"
+                + " data_revision = excluded.data_revision")
+        .param("userId", userId)
         .param("weekStart", weekStart.toString())
         .param("summary", note.summary())
         .param("tips", writeTips(note.tips()))
-        .param("source", note.source())
         .param("createdAt", now.toString())
         .param("revision", dataRevision)
         .update();

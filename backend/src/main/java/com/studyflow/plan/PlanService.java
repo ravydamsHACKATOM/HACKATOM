@@ -4,7 +4,7 @@ import com.studyflow.advisor.AdvisorContext;
 import com.studyflow.advisor.AdvisorContext.DayLoad;
 import com.studyflow.advisor.AdvisorContext.EventProgress;
 import com.studyflow.advisor.AdvisorNote;
-import com.studyflow.advisor.AdvisorService;
+import com.studyflow.advisor.PlanAdvisor;
 import com.studyflow.availability.AvailabilityRepository;
 import com.studyflow.common.BusinessRuleException;
 import com.studyflow.common.DataRevision;
@@ -53,7 +53,7 @@ public class PlanService {
   private final AvailabilityRepository availability;
   private final PlanNoteRepository notes;
   private final DataRevision revision;
-  private final AdvisorService advisor;
+  private final PlanAdvisor advisor;
   private final Clock clock;
   private final SchedulePlanner planner = new SchedulePlanner();
 
@@ -64,7 +64,7 @@ public class PlanService {
       AvailabilityRepository availability,
       PlanNoteRepository notes,
       DataRevision revision,
-      AdvisorService advisor,
+      PlanAdvisor advisor,
       Clock clock) {
     this.blocks = blocks;
     this.events = events;
@@ -77,9 +77,9 @@ public class PlanService {
   }
 
   /** Reads the plan of the week that contains the given day. */
-  public PlanView view(LocalDate anyDayOfWeek) {
+  public PlanView view(long userId, LocalDate anyDayOfWeek) {
     LocalDate weekStart = mondayOf(anyDayOfWeek);
-    return buildView(weekStart, LocalDateTime.now(clock), null, false);
+    return buildView(userId, weekStart, LocalDateTime.now(clock), null, false);
   }
 
   /**
@@ -87,7 +87,7 @@ public class PlanService {
    * locked blocks and postponed slots stay where they are; everything else is redistributed.
    */
   @Transactional
-  public PlanView generate(LocalDate anyDayOfWeek) {
+  public PlanView generate(long userId, LocalDate anyDayOfWeek) {
     LocalDate weekStart = mondayOf(anyDayOfWeek);
     LocalDate weekEnd = weekStart.plusDays(6);
     LocalDateTime now = LocalDateTime.now(clock);
@@ -96,45 +96,45 @@ public class PlanService {
           "WEEK_IN_PAST", "A week that already ended cannot be planned");
     }
 
-    blocks.markMissedBefore(now.toLocalDate(), now.toLocalTime());
+    blocks.markMissedBefore(userId, now.toLocalDate(), now.toLocalTime());
     LocalDateTime from = now.isAfter(weekStart.atStartOfDay()) ? now : weekStart.atStartOfDay();
 
-    List<StudyBlock> current = blocks.findBetween(weekStart, weekEnd);
+    List<StudyBlock> current = blocks.findBetween(userId, weekStart, weekEnd);
     List<StudyBlock> replaceable =
         current.stream().filter(block -> isReplaceable(block, from)).toList();
     blocks.deleteAll(replaceable.stream().map(StudyBlock::id).toList());
 
     List<StudyBlock> kept = current.stream().filter(block -> !replaceable.contains(block)).toList();
-    PlannerResult result = planner.plan(plannerInput(weekStart, from, kept));
+    PlannerResult result = planner.plan(plannerInput(userId, weekStart, from, kept));
     blocks.insertAll(result.blocks());
 
-    boolean replan = notes.find(weekStart).isPresent();
-    Changes changes = diff(replaceable, result.blocks());
+    boolean replan = notes.find(userId, weekStart).isPresent();
+    Changes changes = diff(userId, replaceable, result.blocks());
     // The note is not stored yet, so the draft has to be told the week is already generated.
-    PlanView draft = buildView(weekStart, now, changes, true);
-    AdvisorNote note = advisor.advise(advisorContext(draft, replan));
-    notes.save(weekStart, note, revision.current(), now);
-    return buildView(weekStart, now, changes, false);
+    PlanView draft = buildView(userId, weekStart, now, changes, true);
+    AdvisorNote note = advisor.advise(advisorContext(userId, draft, replan));
+    notes.save(userId, weekStart, note, revision.current(userId), now);
+    return buildView(userId, weekStart, now, changes, false);
   }
 
   @Transactional
-  public StudyBlock setDone(long blockId, boolean done) {
-    StudyBlock block = require(blockId);
+  public StudyBlock setDone(long userId, long blockId, boolean done) {
+    StudyBlock block = require(userId, blockId);
     if (block.status() == BlockStatus.SKIPPED) {
       throw new BusinessRuleException("BLOCK_SKIPPED", "A postponed block cannot be completed");
     }
     blocks.updateStatus(blockId, done ? BlockStatus.DONE : BlockStatus.PLANNED);
-    return require(blockId);
+    return require(userId, blockId);
   }
 
   @Transactional
-  public StudyBlock setLocked(long blockId, boolean locked) {
-    StudyBlock block = require(blockId);
+  public StudyBlock setLocked(long userId, long blockId, boolean locked) {
+    StudyBlock block = require(userId, blockId);
     if (block.status() != BlockStatus.PLANNED) {
       throw new BusinessRuleException("BLOCK_NOT_PLANNED", "Only planned blocks can be locked");
     }
     blocks.updateLocked(blockId, locked);
-    return require(blockId);
+    return require(userId, blockId);
   }
 
   /**
@@ -142,18 +142,20 @@ public class PlanService {
    * regenerated so the effort lands somewhere else.
    */
   @Transactional
-  public PlanView postpone(long blockId) {
-    StudyBlock block = require(blockId);
+  public PlanView postpone(long userId, long blockId) {
+    StudyBlock block = require(userId, blockId);
     if (block.status() != BlockStatus.PLANNED) {
       throw new BusinessRuleException("BLOCK_NOT_PLANNED", "Only planned blocks can be postponed");
     }
     blocks.updateLocked(blockId, false);
     blocks.updateStatus(blockId, BlockStatus.SKIPPED);
-    return generate(block.date());
+    return generate(userId, block.date());
   }
 
-  private StudyBlock require(long blockId) {
-    return blocks.findById(blockId).orElseThrow(() -> new NotFoundException("Block", blockId));
+  private StudyBlock require(long userId, long blockId) {
+    return blocks
+        .findById(userId, blockId)
+        .orElseThrow(() -> new NotFoundException("Block", blockId));
   }
 
   private static boolean isReplaceable(StudyBlock block, LocalDateTime from) {
@@ -162,9 +164,9 @@ public class PlanService {
   }
 
   private PlannerInput plannerInput(
-      LocalDate weekStart, LocalDateTime from, List<StudyBlock> kept) {
+      long userId, LocalDate weekStart, LocalDateTime from, List<StudyBlock> kept) {
     Map<Long, Integer> weights =
-        disciplines.findAll().stream()
+        disciplines.findAll(userId).stream()
             .collect(Collectors.toMap(Discipline::id, Discipline::weight));
     Map<Long, Integer> keptPlanned =
         kept.stream()
@@ -174,7 +176,7 @@ public class PlanService {
                     StudyBlock::eventId, Collectors.summingInt(StudyBlock::getMinutes)));
 
     List<PlannerEvent> pending =
-        events.findAll().stream()
+        events.findAll(userId).stream()
             .filter(event -> !event.lastStudyDay().isBefore(from.toLocalDate()))
             .map(
                 event ->
@@ -192,30 +194,31 @@ public class PlanService {
             .filter(block -> block.status() != BlockStatus.MISSED)
             .map(block -> new TimeRange(block.date(), block.startTime(), block.endTime()))
             .toList();
-    return new PlannerInput(weekStart, from, windows(), busy, pending);
+    return new PlannerInput(weekStart, from, windows(userId), busy, pending);
   }
 
-  private List<WeeklyWindow> windows() {
-    return availability.findAll().stream()
+  private List<WeeklyWindow> windows(long userId) {
+    return availability.findAll(userId).stream()
         .map(window -> new WeeklyWindow(window.dayOfWeek(), window.startTime(), window.endTime()))
         .toList();
   }
 
   private PlanView buildView(
-      LocalDate weekStart, LocalDateTime now, Changes changes, boolean justGenerated) {
+      long userId, LocalDate weekStart, LocalDateTime now, Changes changes, boolean justGenerated) {
     LocalDate weekEnd = weekStart.plusDays(6);
     LocalDate today = now.toLocalDate();
-    List<StudyBlock> weekBlocks = blocks.findBetween(weekStart, weekEnd);
-    Optional<StoredNote> stored = notes.find(weekStart);
+    List<StudyBlock> weekBlocks = blocks.findBetween(userId, weekStart, weekEnd);
+    Optional<StoredNote> stored = notes.find(userId, weekStart);
     boolean generated = justGenerated || stored.isPresent();
 
-    List<Warning> warnings = generated ? warnings(weekEnd, today) : List.of();
+    List<Warning> warnings = generated ? warnings(userId, weekEnd, today) : List.of();
     LocalDateTime from = now.isAfter(weekStart.atStartOfDay()) ? now : weekStart.atStartOfDay();
     int available =
         weekEnd.isBefore(today)
             ? 0
             : planner
-                .freeRanges(new PlannerInput(weekStart, from, windows(), List.of(), List.of()))
+                .freeRanges(
+                    new PlannerInput(weekStart, from, windows(userId), List.of(), List.of()))
                 .stream()
                 .mapToInt(TimeRange::minutes)
                 .sum();
@@ -231,7 +234,7 @@ public class PlanService {
         weekEnd,
         today,
         generated,
-        stored.isPresent() && stored.get().dataRevision() != revision.current(),
+        stored.isPresent() && stored.get().dataRevision() != revision.current(userId),
         weekBlocks,
         warnings,
         stats,
@@ -240,8 +243,8 @@ public class PlanService {
   }
 
   /** Events that must be finished by the end of this week but still have uncovered effort. */
-  private List<Warning> warnings(LocalDate weekEnd, LocalDate today) {
-    return events.findAll().stream()
+  private List<Warning> warnings(long userId, LocalDate weekEnd, LocalDate today) {
+    return events.findAll(userId).stream()
         .filter(event -> !event.dueDate().isBefore(today))
         .filter(event -> !event.lastStudyDay().isAfter(weekEnd))
         .filter(event -> missing(event) > 0)
@@ -269,7 +272,7 @@ public class PlanService {
   }
 
   /** Compares the blocks that were replaced with the freshly planned ones. */
-  private Changes diff(List<StudyBlock> before, List<PlannedBlock> after) {
+  private Changes diff(long userId, List<StudyBlock> before, List<PlannedBlock> after) {
     Set<String> beforeKeys = before.stream().map(PlanService::key).collect(Collectors.toSet());
     Set<String> afterKeys = after.stream().map(PlanService::key).collect(Collectors.toSet());
     Set<String> keptKeys = new HashSet<>(beforeKeys);
@@ -286,7 +289,8 @@ public class PlanService {
                 Collectors.groupingBy(
                     PlannedBlock::eventId, Collectors.summingInt(PlannedBlock::minutes)));
     Map<Long, String> titles =
-        events.findAll().stream().collect(Collectors.toMap(StudyEvent::id, StudyEvent::title));
+        events.findAll(userId).stream()
+            .collect(Collectors.toMap(StudyEvent::id, StudyEvent::title));
 
     Map<Long, EventDelta> deltas = new LinkedHashMap<>();
     Set<Long> ids = new HashSet<>(beforeMinutes.keySet());
@@ -313,7 +317,7 @@ public class PlanService {
     return block.eventId() + "|" + block.date() + "|" + block.start() + "|" + block.end();
   }
 
-  private AdvisorContext advisorContext(PlanView view, boolean replan) {
+  private AdvisorContext advisorContext(long userId, PlanView view, boolean replan) {
     Map<LocalDate, List<StudyBlock>> byDay =
         view.blocks().stream()
             .filter(block -> block.status() == BlockStatus.PLANNED)
@@ -333,7 +337,7 @@ public class PlanService {
                 Collectors.groupingBy(
                     StudyBlock::eventId, Collectors.summingInt(StudyBlock::getMinutes)));
     List<EventProgress> progress =
-        events.findAll().stream()
+        events.findAll(userId).stream()
             .filter(event -> !event.dueDate().isBefore(view.today()))
             .filter(event -> ChronoUnit.DAYS.between(view.today(), event.dueDate()) <= 21)
             .map(

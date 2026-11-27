@@ -10,6 +10,7 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
+/** Events belong to a discipline, and through it to a user: every query checks that owner. */
 @Repository
 public class StudyEventRepository {
 
@@ -29,7 +30,11 @@ public class StudyEventRepository {
           + BLOCK_MINUTES
           + ") FROM study_blocks b WHERE b.event_id = e.id AND b.status = 'PLANNED'), 0)"
           + " AS planned_minutes"
-          + " FROM study_events e JOIN disciplines d ON d.id = e.discipline_id";
+          + " FROM study_events e JOIN disciplines d ON d.id = e.discipline_id"
+          + " WHERE d.user_id = :userId";
+
+  private static final String OWNED =
+      " AND discipline_id IN (SELECT id FROM disciplines WHERE user_id = :userId)";
 
   private final JdbcClient jdbc;
 
@@ -37,18 +42,23 @@ public class StudyEventRepository {
     this.jdbc = jdbc;
   }
 
-  public List<StudyEvent> findAll() {
-    return jdbc.sql(SELECT + " ORDER BY e.due_date, e.id").query(StudyEventRepository::map).list();
+  public List<StudyEvent> findAll(long userId) {
+    return jdbc.sql(SELECT + " ORDER BY e.due_date, e.id")
+        .param("userId", userId)
+        .query(StudyEventRepository::map)
+        .list();
   }
 
-  public Optional<StudyEvent> findById(long id) {
-    return jdbc.sql(SELECT + " WHERE e.id = :id")
+  public Optional<StudyEvent> findById(long userId, long id) {
+    return jdbc.sql(SELECT + " AND e.id = :id")
+        .param("userId", userId)
         .param("id", id)
         .query(StudyEventRepository::map)
         .optional();
   }
 
-  public StudyEvent insert(StudyEventRequest request) {
+  /** The caller must have checked that the discipline belongs to the user. */
+  public StudyEvent insert(long userId, StudyEventRequest request) {
     KeyHolder keys = new GeneratedKeyHolder();
     jdbc.sql(
             "INSERT INTO study_events (discipline_id, title, type, due_date, effort_minutes, notes)"
@@ -60,14 +70,15 @@ public class StudyEventRepository {
         .param("effortMinutes", request.effortMinutes())
         .param("notes", request.notes())
         .update(keys);
-    return findById(keys.getKey().longValue()).orElseThrow();
+    return findById(userId, keys.getKey().longValue()).orElseThrow();
   }
 
-  public boolean update(long id, StudyEventRequest request) {
+  public boolean update(long userId, long id, StudyEventRequest request) {
     return jdbc.sql(
                 "UPDATE study_events SET discipline_id = :disciplineId, title = :title,"
                     + " type = :type, due_date = :dueDate, effort_minutes = :effortMinutes,"
-                    + " notes = :notes WHERE id = :id")
+                    + " notes = :notes WHERE id = :id"
+                    + OWNED)
             .param("disciplineId", request.disciplineId())
             .param("title", request.title().trim())
             .param("type", request.type().name())
@@ -75,12 +86,17 @@ public class StudyEventRepository {
             .param("effortMinutes", request.effortMinutes())
             .param("notes", request.notes())
             .param("id", id)
+            .param("userId", userId)
             .update()
         > 0;
   }
 
-  public boolean delete(long id) {
-    return jdbc.sql("DELETE FROM study_events WHERE id = :id").param("id", id).update() > 0;
+  public boolean delete(long userId, long id) {
+    return jdbc.sql("DELETE FROM study_events WHERE id = :id" + OWNED)
+            .param("id", id)
+            .param("userId", userId)
+            .update()
+        > 0;
   }
 
   private static StudyEvent map(ResultSet rs, int rowNum) throws SQLException {

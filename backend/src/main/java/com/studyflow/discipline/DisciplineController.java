@@ -1,5 +1,6 @@
 package com.studyflow.discipline;
 
+import com.studyflow.auth.AuthInterceptor;
 import com.studyflow.common.DataRevision;
 import com.studyflow.common.NotFoundException;
 import jakarta.validation.Valid;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -28,33 +30,38 @@ public class DisciplineController {
   }
 
   @GetMapping
-  List<Discipline> list() {
-    return disciplines.findAll();
+  List<Discipline> list(@RequestAttribute(AuthInterceptor.USER_ID) long userId) {
+    return disciplines.findAll(userId);
   }
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  Discipline create(@Valid @RequestBody DisciplineRequest request) {
-    return disciplines.insert(request);
+  Discipline create(
+      @RequestAttribute(AuthInterceptor.USER_ID) long userId,
+      @Valid @RequestBody DisciplineRequest request) {
+    return disciplines.insert(userId, request);
   }
 
   @PutMapping("/{id}")
-  Discipline update(@PathVariable long id, @Valid @RequestBody DisciplineRequest request) {
-    if (!disciplines.update(id, request)) {
+  Discipline update(
+      @RequestAttribute(AuthInterceptor.USER_ID) long userId,
+      @PathVariable long id,
+      @Valid @RequestBody DisciplineRequest request) {
+    if (!disciplines.update(userId, id, request)) {
       throw new NotFoundException("Discipline", id);
     }
     // The weight feeds the planner, so an edit can make the current plan stale.
-    revision.bump();
-    return disciplines.findById(id).orElseThrow();
+    revision.bump(userId);
+    return disciplines.findById(userId, id).orElseThrow();
   }
 
   @DeleteMapping("/{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  void delete(@PathVariable long id) {
-    if (!disciplines.delete(id)) {
+  void delete(@RequestAttribute(AuthInterceptor.USER_ID) long userId, @PathVariable long id) {
+    if (!disciplines.delete(userId, id)) {
       throw new NotFoundException("Discipline", id);
     }
     // Deleting a discipline cascades to its events and blocks.
-    revision.bump();
+    revision.bump(userId);
   }
 }

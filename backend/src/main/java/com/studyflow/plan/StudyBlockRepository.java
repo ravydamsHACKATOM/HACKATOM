@@ -11,6 +11,7 @@ import java.util.Optional;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
+/** Blocks belong to an event, a discipline and, through it, a user: reads check that owner. */
 @Repository
 public class StudyBlockRepository {
 
@@ -20,7 +21,8 @@ public class StudyBlockRepository {
           + " b.block_date, b.start_time, b.end_time, b.kind, b.status, b.locked"
           + " FROM study_blocks b"
           + " JOIN study_events e ON e.id = b.event_id"
-          + " JOIN disciplines d ON d.id = e.discipline_id";
+          + " JOIN disciplines d ON d.id = e.discipline_id"
+          + " WHERE d.user_id = :userId";
 
   private final JdbcClient jdbc;
 
@@ -28,19 +30,21 @@ public class StudyBlockRepository {
     this.jdbc = jdbc;
   }
 
-  public List<StudyBlock> findBetween(LocalDate from, LocalDate to) {
+  public List<StudyBlock> findBetween(long userId, LocalDate from, LocalDate to) {
     return jdbc.sql(
             SELECT
-                + " WHERE b.block_date BETWEEN :from AND :to"
+                + " AND b.block_date BETWEEN :from AND :to"
                 + " ORDER BY b.block_date, b.start_time")
+        .param("userId", userId)
         .param("from", from.toString())
         .param("to", to.toString())
         .query(StudyBlockRepository::map)
         .list();
   }
 
-  public Optional<StudyBlock> findById(long id) {
-    return jdbc.sql(SELECT + " WHERE b.id = :id")
+  public Optional<StudyBlock> findById(long userId, long id) {
+    return jdbc.sql(SELECT + " AND b.id = :id")
+        .param("userId", userId)
         .param("id", id)
         .query(StudyBlockRepository::map)
         .optional();
@@ -61,6 +65,7 @@ public class StudyBlockRepository {
     }
   }
 
+  /** The ids must come from a read scoped to the user. */
   public void deleteAll(List<Long> ids) {
     if (!ids.isEmpty()) {
       jdbc.sql("DELETE FROM study_blocks WHERE id IN (:ids)").param("ids", ids).update();
@@ -68,15 +73,19 @@ public class StudyBlockRepository {
   }
 
   /** Planned blocks whose time has passed go back to the pool of pending effort. */
-  public int markMissedBefore(LocalDate date, LocalTime time) {
+  public int markMissedBefore(long userId, LocalDate date, LocalTime time) {
     return jdbc.sql(
             "UPDATE study_blocks SET status = 'MISSED', locked = 0 WHERE status = 'PLANNED'"
-                + " AND (block_date < :date OR (block_date = :date AND end_time <= :time))")
+                + " AND (block_date < :date OR (block_date = :date AND end_time <= :time))"
+                + " AND event_id IN (SELECT e.id FROM study_events e"
+                + " JOIN disciplines d ON d.id = e.discipline_id WHERE d.user_id = :userId)")
+        .param("userId", userId)
         .param("date", date.toString())
         .param("time", time.toString())
         .update();
   }
 
+  /** The id must come from a read scoped to the user. */
   public void updateStatus(long id, BlockStatus status) {
     jdbc.sql("UPDATE study_blocks SET status = :status WHERE id = :id")
         .param("status", status.name())
@@ -84,6 +93,7 @@ public class StudyBlockRepository {
         .update();
   }
 
+  /** The id must come from a read scoped to the user. */
   public void updateLocked(long id, boolean locked) {
     jdbc.sql("UPDATE study_blocks SET locked = :locked WHERE id = :id")
         .param("locked", locked ? 1 : 0)
