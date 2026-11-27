@@ -64,7 +64,7 @@ Descrevam a organização do repositório. Ajustem o exemplo abaixo à escolha d
 
 ### Pré-requisitos
 
-Java 21.0.7
+Java 21
 Banco de dados: SQL Lite
 
 ### Back-end

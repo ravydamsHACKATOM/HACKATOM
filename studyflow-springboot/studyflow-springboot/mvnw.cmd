@@ -29,6 +29,10 @@
 
 @IF "%__MVNW_ARG0_NAME__%"=="" (SET __MVNW_ARG0_NAME__=%~nx0)
 @SET __MVNW_CMD__=
+@IF EXIST "%~dp0.jdks\jdk-21.0.7+6\bin\java.exe" (
+  @SET "JAVA_HOME=%~dp0.jdks\jdk-21.0.7+6"
+  @SET "PATH=%~dp0.jdks\jdk-21.0.7+6\bin;%PATH%"
+)
 @SET __MVNW_ERROR__=
 @SET __MVNW_PSMODULEP_SAVE=%PSModulePath%
 @SET PSModulePath=

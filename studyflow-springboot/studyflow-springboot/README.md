@@ -4,7 +4,7 @@ Spring Boot REST API for the StudyFlow study planner. This starter implements th
 
 ## Requirements
 
-- Java 21
+- Java 21.0.7 (the Maven wrapper uses the project-local JDK in `.jdks` when present)
 - Maven 3.9+ (or use the Maven wrapper if you add one)
 - Internet access on the first build to download dependencies
 
