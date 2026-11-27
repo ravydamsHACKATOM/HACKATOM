@@ -1,0 +1,8 @@
+# Keep LF in the repository and in every checkout, so the format checks give the
+# same answer on Windows and on the Linux runners of the CI.
+* text=auto eol=lf
+
+*.cmd text eol=crlf
+*.webp binary
+*.png binary
+*.jar binary
