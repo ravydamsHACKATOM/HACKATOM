@@ -12,7 +12,8 @@ variables and in GitHub Secrets.
 ## Tools
 
 - **ChatGPT**: planning, environment setup and project analysis in the first days.
-- **Codex**: attempted in the development environment (it did not work with our account).
+- **Codex**: failed with our account on 26/11; used on 27/11 to review the first prototype
+  against the briefing.
 - **Claude Code**: rebuild of the application on 27/11 (code, tests, CI and documentation).
 - **Z-Image Turbo on ComfyUI**, running locally: illustrations, icons and paper textures.
 
@@ -81,6 +82,21 @@ variables and in GitHub Secrets.
 - **What the team kept:** the order of the tasks, favoring a working end-to-end flow before
   secondary features and visual improvements.
 - **What the team corrected or rejected, and why:** not recorded at the time.
+
+### 27/11/2026 — Requirements review of the first prototype (Codex)
+
+- **Main prompt:** compare the project with the instructor's Study Planner briefing and make the
+  feasible improvements.
+- **What the AI generated:** a requirements audit, bilingual documentation at the repository
+  root, a Checkstyle step in the pipeline, and a change to stop generated blocks at the Sunday of
+  the selected week and to run the generation in a transaction, with a regression test.
+- **What the team kept:** the audit, which confirmed the gaps that led to the rebuild, and the
+  two rules, which the rebuilt scheduler also follows: blocks never go beyond the selected week
+  and the generation runs in one transaction.
+- **What the team corrected or rejected, and why:** the first local checks found an unused import
+  and then missing imports, which were corrected. The code changes were made to the first
+  prototype in parallel with the rebuild; since the rebuild replaces that prototype, they were
+  not carried over, and its documentation was merged into the files of the rebuild.
 
 ### 27/11/2026 — Diagnosis and rebuild plan (Claude Code)
 

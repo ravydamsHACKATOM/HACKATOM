@@ -12,7 +12,8 @@ ambiente e em GitHub Secrets.
 ## Ferramentas
 
 - **ChatGPT**: planejamento, configuração do ambiente e análise do projeto nos primeiros dias.
-- **Codex**: tentativa de uso no ambiente de desenvolvimento (não funcionou com a nossa conta).
+- **Codex**: falhou com a nossa conta em 26/11; foi usado em 27/11 para revisar o primeiro
+  protótipo em relação ao briefing.
 - **Claude Code**: reconstrução da aplicação em 27/11 (código, testes, CI e documentação).
 - **Z-Image Turbo no ComfyUI**, rodando localmente: ilustrações, ícones e texturas de papel.
 
@@ -85,6 +86,22 @@ ambiente e em GitHub Secrets.
 - **O que o time aproveitou:** a ordem das tarefas, com preferência para um fluxo funcional de
   ponta a ponta antes de funcionalidades secundárias e melhorias visuais.
 - **O que o time corrigiu ou rejeitou, e por quê:** não registrado na época.
+
+### 27/11/2026 — Revisão dos requisitos do primeiro protótipo (Codex)
+
+- **Prompt principal:** comparar o projeto com o briefing do professor e implementar as melhorias
+  viáveis.
+- **O que a IA gerou:** uma análise de requisitos, a documentação bilíngue na raiz do repositório,
+  uma etapa de Checkstyle na pipeline, e uma alteração para limitar os blocos gerados ao domingo
+  da semana escolhida e executar a geração em uma transação, com um teste de regressão.
+- **O que o time aproveitou:** a análise, que confirmou as lacunas que levaram à reconstrução, e
+  as duas regras, que o agendador refeito também segue: os blocos nunca passam da semana
+  escolhida e a geração roda em uma única transação.
+- **O que o time corrigiu ou rejeitou, e por quê:** as primeiras verificações locais apontaram um
+  import não utilizado e depois imports ausentes, que foram corrigidos. As alterações de código
+  foram feitas no primeiro protótipo em paralelo com a reconstrução; como a reconstrução
+  substitui esse protótipo, elas não foram levadas adiante, e a documentação dele foi unida aos
+  arquivos da reconstrução.
 
 ### 27/11/2026 — Diagnóstico e plano de reconstrução (Claude Code)
 
