@@ -2,48 +2,138 @@
 
 [English](DECISIONS.md) · **Português (Brasil)**
 
-Registrem aqui as decisões importantes do time. Cada entrada deve ser curta e trazer o que foi decidido, as alternativas consideradas e o motivo da escolha.
+As decisões importantes do time, na ordem em que foram tomadas. Cada entrada traz o que foi
+decidido, as alternativas consideradas e o motivo da escolha. Este arquivo é o roteiro do bloco de
+decisões da apresentação.
 
-A documentação do projeto deve ser escrita **em inglês** (a versão principal é o [`DECISIONS.md`](DECISIONS.md)), com uma **versão em português** ao lado. Mantenham as duas versões alinhadas.
+## 23/11/2026 — Tech Lead
 
-Mantenham este arquivo na **raiz** do repositório. Incluam uma entrada nova para cada decisão relevante (stack, arquitetura, recorte do MVP, o que ficou de fora, caminhos que vocês tentaram e abandonaram etc.). Este arquivo serve de roteiro para o bloco de decisões da apresentação.
-
-Copiem o modelo abaixo sempre que precisarem de uma entrada nova.
-
-## Modelo
-
-```markdown
-## [data] — [título da decisão]
-- **Decisão:**
-- **Alternativas consideradas:**
-- **Motivo:**
-```
-## [23/11] — [Teach Lead]
-
-- **Decisão:** Teach Lead: Ana Carolina
+- **Decisão:** Ana Carolina é a Tech Lead.
 - **Alternativas consideradas:** Raphael.
 - **Motivo:** Ana tem mais conhecimento.
 
-## [23/11] — [Presenter]
+## 23/11/2026 — Responsável pela apresentação
 
-- **Decisão:** Apresentador: Victor.
+- **Decisão:** Victor apresenta o projeto.
 - **Alternativas consideradas:** Yuri.
-- **Motivo:** Comunicativo e tem conhecimento de inglês.
+- **Motivo:** Victor é comunicativo e tem conhecimento de inglês.
 
-## [24/11] — [Decisão da Linguagem]
+## 24/11/2026 — Stack do back-end
 
-- **Decisão:** Linguagem Java com Spring.
-- **Alternativas consideradas:** Node.
-- **Motivo:** Todos integrantes são familiarizados com o java.
+- **Decisão:** Java com Spring Boot.
+- **Alternativas consideradas:** Node.js.
+- **Motivo:** todos os integrantes são familiarizados com Java.
 
-## [24/11] — [Decisão do Front-end]
+## 24/11/2026 — Stack do front-end
 
-- **Decisão:** HTML, CSS, JavaScript.
+- **Decisão:** HTML, CSS e JavaScript, sem framework.
 - **Alternativas consideradas:** nenhuma.
-- **Motivo:** Facilidade, projeto não é tão massivo.
+- **Motivo:** facilidade; o projeto não é tão grande.
 
-## [25/11] — [Decisão do Projeto]
+## 25/11/2026 — Esqueleto do projeto
 
-- **Decisão:** Projeto esqueleto e MVP funcionando.
+- **Decisão:** gerar o esqueleto do projeto e um MVP funcionando com apoio de IA.
 - **Alternativas consideradas:** Claude.
-- **Motivo:** IA mais funcional.
+- **Motivo:** a ferramenta de IA escolhida na época era mais funcional para o time.
+
+## 27/11/2026 — Refazer a aplicação do zero
+
+- **Decisão:** descartar o primeiro protótipo e refazer back-end e front-end, mantendo a stack.
+- **Alternativas consideradas:** corrigir o protótipo onde estava.
+- **Motivo:** o protótipo tinha pastas aninhadas, uma pipeline apontando para uma pasta que não
+  existia, documentos fora da raiz do repositório, um único script de 1.700 linhas no front-end e
+  nenhuma IA no produto. Corrigir cada ponto custaria mais do que refazer usando o checklist do
+  briefing como guia, e o resultado ainda seria mais difícil de explicar.
+
+## 27/11/2026 — Recorte do MVP
+
+- **Decisão:** entregar os seis requisitos do briefing (cadastro, disponibilidade, geração,
+  visualização, conclusão e ajuste, "o que fazer hoje") mais a explicação do plano, e nada além.
+- **Ficou de fora:** contas e login, integração com o sistema acadêmico, notificações, importação
+  de dados e sessões de estudo em grupo.
+- **Motivo:** o briefing coloca os dois primeiros fora de escopo, e os outros não mudam o fluxo
+  principal. Um estudante em um computador basta para demonstrar o produto; o nome pedido na
+  primeira tela só personaliza a saudação e fica guardado no navegador.
+
+## 27/11/2026 — O agendador é determinístico; a IA só explica
+
+- **Decisão:** um conjunto de regras fixas, escrito em Java puro, decide o cronograma. A IA recebe
+  o resultado e escreve a explicação e as dicas.
+- **Alternativas consideradas:** pedir ao modelo de linguagem que montasse o cronograma.
+- **Motivo:** um modelo de linguagem pode colocar um bloco fora do horário livre do estudante,
+  marcar a mesma hora duas vezes ou mudar a resposta entre uma execução e outra, e nada disso
+  pode ser testado. Com regras fixas, "um bloco nunca cai fora da disponibilidade" é uma garantia
+  coberta por testes, e a resposta para "como vocês evitam um calendário bonito, porém
+  impossível?" é o próprio código. A IA faz o que faz bem: transformar números em uma explicação
+  clara e humana.
+
+## 27/11/2026 — Regras do agendamento
+
+- **Decisão:** sessões de foco de 50 minutos com pausas de 10; prazo mais próximo primeiro, com
+  desempate pelo peso da disciplina; troca de matéria depois de duas sessões seguidas quando a
+  mais urgente ainda tem folga; não se estuda para a prova no dia da prova, e a última sessão é
+  de revisão; prazos além da semana ocupam só uma parte proporcional dela.
+- **Alternativas consideradas:** distribuir todos os eventos igualmente pela semana.
+- **Motivo:** "prazo mais próximo primeiro" é a regra que garante que, se tudo cabe, tudo entra.
+  A distribuição igual parece equilibrada, mas pode deixar a prova de sexta com estudo de menos.
+  A troca de matéria evita quatro horas seguidas do mesmo conteúdo sem colocar prazo em risco.
+
+## 27/11/2026 — O que não cabe é mostrado, não escondido
+
+- **Decisão:** quando o tempo disponível é menor do que o esforço estimado, o plano agenda o que
+  cabe e mostra um aviso com o tempo que falta em cada evento.
+- **Alternativas consideradas:** encolher as sessões ou passar da disponibilidade para caber tudo.
+- **Motivo:** quem pode decidir o que cortar, antecipar ou reestimar é o estudante. Um plano que
+  lota a agenda em silêncio repetiria o problema que o produto existe para resolver.
+
+## 27/11/2026 — Ajuste do plano: concluído, travado, adiado
+
+- **Decisão:** refazer o plano mantém os blocos concluídos, os travados e os horários adiados, e
+  redistribui o resto. Blocos cujo horário passou sem serem feitos voltam para a fila.
+- **Alternativas consideradas:** sempre refazer a semana inteira do zero.
+- **Motivo:** responde a três perguntas do briefing: o estudante pode travar blocos que não quer
+  que sejam movidos, pode corrigir um plano otimista adiando, e nunca perde o que já fez quando um
+  prazo muda. A interface lista o que mudou depois de cada ajuste.
+
+## 27/11/2026 — Provedor de IA e plano B
+
+- **Decisão:** Claude (Anthropic) pelo SDK oficial para Java, com saída estruturada. A chave vem
+  só da variável de ambiente `ANTHROPIC_API_KEY`. Sem chave, ou em qualquer falha, responde um
+  orientador por regras.
+- **Alternativas consideradas:** tornar a IA obrigatória; chamar a API HTTP manualmente.
+- **Motivo:** a demo não pode depender de rede nem de cota, e a pipeline precisa rodar sem
+  segredos. O SDK oficial dá requisições tipadas e um formato de resposta validado.
+
+## 27/11/2026 — SQLite com SQL explícito e Flyway
+
+- **Decisão:** SQLite acessado com o `JdbcClient` do Spring, com o schema versionado pelo Flyway.
+- **Alternativas consideradas:** PostgreSQL; JPA/Hibernate.
+- **Motivo:** o SQLite não precisa de instalação, então qualquer pessoa do time (e a banca) roda
+  o projeto com um comando. Com cinco tabelas pequenas, o SQL explícito é mais fácil de ler e de
+  explicar do que mapeamentos de ORM, e o Hibernate não tem dialeto oficial para SQLite.
+
+## 27/11/2026 — Uma aplicação, um comando
+
+- **Decisão:** o back-end serve o front-end a partir do mesmo jar e da mesma origem.
+- **Alternativas consideradas:** um servidor separado para o front-end.
+- **Motivo:** não há CORS para configurar nem um segundo processo para subir na demo, e as pastas
+  continuam separadas (`backend/`, `frontend/`), cada uma com lint e testes próprios.
+
+## 27/11/2026 — Direção visual
+
+- **Decisão:** um visual de "papel e tinta": superfícies quentes de baixo contraste com uma
+  textura sutil de papel, um único verde calmo como destaque, serifa nos títulos e temas claro e
+  escuro. As animações são curtas e desligam quando o sistema pede movimento reduzido.
+- **Alternativas consideradas:** o visual padrão de uma biblioteca de componentes; uma paleta
+  viva, de alto contraste.
+- **Motivo:** um planejador é aberto várias vezes por dia, muitas delas à noite. Ele precisa ser
+  calmo e não cansar a vista. As ilustrações e os ícones foram gerados com um modelo de imagem
+  local a partir de uma única direção de arte, para o conjunto ficar coerente.
+
+## 27/11/2026 — Padrão de commits cobrado pela pipeline
+
+- **Decisão:** Conventional Commits em inglês, validados pelo commitlint em todo pull request, com
+  as regras escritas no `AGENTS.md`.
+- **Alternativas consideradas:** confiar na revisão para pegar mensagens ruins.
+- **Motivo:** os primeiros dias do histórico tinham mensagens como "updating file". Uma checagem
+  automática não custa nada e mantém o histórico legível para a banca técnica.
