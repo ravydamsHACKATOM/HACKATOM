@@ -1,0 +1,11 @@
+target/
+.jdks/
+.idea/
+.vscode/
+StudyFlow.code-workspace
+*.iml
+*.db
+*.sqlite
+*.sqlite3
+.DS_Store
+.env
