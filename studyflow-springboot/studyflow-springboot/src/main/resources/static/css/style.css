@@ -229,6 +229,29 @@ main {
     background: #e6a34a;
 }
 
+.schedule-warning {
+    margin: 18px 0;
+    padding: 16px 18px;
+    border: 1px solid #e7b65f;
+    border-radius: 12px;
+    background: #fff8e9;
+    color: #76500b;
+    line-height: 1.5;
+}
+
+.schedule-warning[hidden] {
+    display: none;
+}
+
+.schedule-warning ul {
+    margin: 8px 0;
+    padding-left: 22px;
+}
+
+.schedule-warning small {
+    color: #876a2c;
+}
+
 .menu {
     display: none;
 }

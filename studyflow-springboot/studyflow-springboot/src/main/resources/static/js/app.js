@@ -15,6 +15,7 @@ const state = {
     events: [],
     availabilities: [],
     blocks: [],
+    scheduleWarnings: [],
     todayBlocks: [],
     week: getMonday(new Date()),
     editing: null,
@@ -829,6 +830,8 @@ function renderAvailability() {
 
 function renderSchedule() {
 
+    renderScheduleWarnings(state.scheduleWarnings);
+
     const end = addDays(state.week, 6);
 
 
@@ -1446,11 +1449,13 @@ async function generateSchedule() {
         await loadTodayBlocks();
 
 
-        const total = result ? result.length : 0;
+        const blocks = result?.blocks || [];
+        state.scheduleWarnings = result?.warnings || [];
+        renderScheduleWarnings(state.scheduleWarnings);
 
 
         showToast(
-            `Cronograma gerado: ${total} bloco(s) criado(s).`
+            `Cronograma gerado: ${blocks.length} bloco(s) criado(s).`
         );
 
 
@@ -1462,6 +1467,36 @@ async function generateSchedule() {
 
 }
 
+function renderScheduleWarnings(warnings) {
+    const container = $("#scheduleWarning");
+    if (!container) return;
+
+    if (!warnings.length) {
+        container.hidden = true;
+        container.innerHTML = "";
+        return;
+    }
+
+    const warningItems = warnings.map(warning => {
+        const minutes = Number(warning.remainingMinutes || 0);
+        const hours = Math.floor(minutes / 60);
+        const rest = minutes % 60;
+        const remaining = [
+            hours ? `${hours}h` : "",
+            rest ? `${rest}min` : ""
+        ].filter(Boolean).join(" ");
+
+        return `<li><strong>${escapeHTML(getEventTitle(warning.studyEventId))}</strong>: ${remaining} de esforço estimado ficaram sem horário nesta semana.</li>`;
+    }).join("");
+
+    container.innerHTML = `
+        <strong>Não foi possível encaixar todo o esforço estimado.</strong>
+        <ul>${warningItems}</ul>
+        <small>Considere revisar sua disponibilidade ou o prazo da entrega.</small>
+    `;
+    container.hidden = false;
+}
+
 
 // ==========================================
 // 25. NAVEGAÇÃO DAS SEMANAS
@@ -1470,6 +1505,7 @@ async function generateSchedule() {
 function previousWeek() {
 
     state.week = addDays(state.week, -7);
+    state.scheduleWarnings = [];
 
     loadBlocks();
 
@@ -1479,6 +1515,7 @@ function previousWeek() {
 function nextWeek() {
 
     state.week = addDays(state.week, 7);
+    state.scheduleWarnings = [];
 
     loadBlocks();
 
@@ -1488,6 +1525,7 @@ function nextWeek() {
 function currentWeek() {
 
     state.week = getMonday(new Date());
+    state.scheduleWarnings = [];
 
     loadBlocks();
 

@@ -3,6 +3,7 @@ package com.studyflow.service;
 import com.studyflow.model.Availability;
 import com.studyflow.model.StudyBlock;
 import com.studyflow.model.StudyEvent;
+import com.studyflow.dto.ScheduleGenerationResponse;
 import com.studyflow.repository.StudyFlowRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -54,9 +55,11 @@ class StudyFlowServiceTest {
                             end.toString(), minutes, false);
                 });
 
-        List<StudyBlock> blocks = service.generateSchedule(monday);
+        ScheduleGenerationResponse response = service.generateSchedule(monday);
+        List<StudyBlock> blocks = response.blocks();
 
         assertEquals(21, blocks.size());
+        assertEquals(750, response.warnings().getFirst().remainingMinutes());
         assertTrue(blocks.stream().allMatch(block -> {
             LocalDate date = LocalDate.parse(block.studyDate());
             return !date.isBefore(monday) && !date.isAfter(sunday);

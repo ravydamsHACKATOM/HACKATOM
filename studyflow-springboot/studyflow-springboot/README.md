@@ -91,7 +91,7 @@ Mark a block as completed:
 - Events are considered in due-date order.
 - Sessions are placed on or before the event's due date, within the selected Monday–Sunday week.
 - When generating again, only pending blocks in that week are replaced; completed blocks are preserved.
-- If there is not enough availability, the API creates as many sessions as fit. The remaining effort is not yet shown as a separate warning; this is a known MVP improvement.
+- If there is not enough availability, the API creates as many sessions as fit and returns warnings with the remaining estimated effort for each event; the web interface shows those warnings after schedule generation.
 
 ## Notes
 

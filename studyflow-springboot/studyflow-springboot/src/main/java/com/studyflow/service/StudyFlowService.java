@@ -2,6 +2,8 @@ package com.studyflow.service;
 
 import com.studyflow.dto.AvailabilityRequest;
 import com.studyflow.dto.DisciplineRequest;
+import com.studyflow.dto.ScheduleGenerationResponse;
+import com.studyflow.dto.ScheduleWarning;
 import com.studyflow.dto.StudyEventRequest;
 import com.studyflow.model.Availability;
 import com.studyflow.model.Discipline;
@@ -68,7 +70,7 @@ public class StudyFlowService {
     }
 
     @Transactional
-    public List<StudyBlock> generateSchedule(LocalDate weekStart) {
+    public ScheduleGenerationResponse generateSchedule(LocalDate weekStart) {
         LocalDate monday = weekStart.with(DayOfWeek.MONDAY);
         LocalDate sunday = monday.plusDays(6);
         List<Availability> availabilities = repository.findAllAvailabilities();
@@ -83,6 +85,7 @@ public class StudyFlowService {
                 .toList();
 
         List<StudyBlock> created = new ArrayList<>();
+        List<ScheduleWarning> warnings = new ArrayList<>();
         for (StudyEvent event : events) {
             int remainingMinutes = (int) Math.ceil(event.estimatedHours() * 60);
             LocalDate dueDate = LocalDate.parse(event.dueDate());
@@ -112,8 +115,12 @@ public class StudyFlowService {
                     }
                 }
             }
+
+            if (remainingMinutes > 0) {
+                warnings.add(new ScheduleWarning(event.id(), remainingMinutes));
+            }
         }
-        return created;
+        return new ScheduleGenerationResponse(created, warnings);
     }
 
     private void validateAvailability(AvailabilityRequest r) {
