@@ -1137,53 +1137,6 @@
   padding: 0;
 }
 
-/* ---------- Account in the sidebar ---------- */
-
-.account {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: var(--space-3);
-  margin-top: var(--space-2);
-  padding: var(--space-3) var(--space-2) 0;
-  border-top: 1px solid var(--line);
-}
-
-.account__avatar {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: var(--on-accent);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.account__text {
-  display: grid;
-  min-width: 0;
-  line-height: 1.3;
-}
-
-.account__text strong,
-.account__text span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.account__text strong {
-  font-size: var(--text-sm);
-}
-
-.account__text span {
-  color: var(--ink-faint);
-  font-size: var(--text-xs);
-}
-
 /* ---------- Responsive ---------- */
 
 @media (max-width: 860px) {

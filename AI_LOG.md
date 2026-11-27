@@ -199,3 +199,17 @@ variables and in GitHub Secrets.
   dialog, which the select treated as a reason to close. Then the list appeared out of place,
   because visual effects on the dialog changed what "fixed position" is measured from. The list
   is now scrolled by hand and moved to the end of the page while open.
+
+### 27/11/2026 — Today screen and sidebar redesign (Claude Code)
+
+- **Main prompt:** a screenshot of the Today screen with "improve this screen, make it more
+  beautiful, subtly animated and professional, and enhance the sidebar design too".
+- **What the AI generated:** a greeting header with the progress of the day, four summary tiles,
+  a highlighted card for the block to do now with a live "starts in" label, a timeline of the
+  day, a week strip, and a sidebar with the progress of the week, grouped navigation with
+  counters, a theme switch and the account card. Phones got a top bar for the account.
+- **What the team kept:** the whole layout.
+- **What the team corrected or rejected, and why:** in the browser the soft light behind the
+  greeting ended in a hard vertical edge in the dark theme, and "Provas e entregas" wrapped onto
+  two lines in the sidebar; both were fixed. On phones the summary tiles were cramped, so their
+  icons are hidden there. Before this change, signing out was not reachable on phones at all.

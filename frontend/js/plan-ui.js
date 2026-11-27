@@ -198,32 +198,3 @@ export function generateButton(plan, { small = false } = {}) {
     </button>
   `;
 }
-
-/** Circular progress used on the "today" header. */
-export function progressRing(done, total) {
-  const ratio = total === 0 ? 0 : Math.min(1, done / total);
-  const circumference = 2 * Math.PI * 52;
-  return html`
-    <div
-      class="ring"
-      role="img"
-      aria-label="${duration(done)} de ${duration(total)} concluídos hoje"
-    >
-      <svg viewBox="0 0 120 120" width="120" height="120">
-        <circle class="ring__track" cx="60" cy="60" r="52" />
-        <circle
-          class="ring__value"
-          cx="60"
-          cy="60"
-          r="52"
-          stroke-dasharray="${circumference}"
-          style="--offset:${circumference * (1 - ratio)}; --full:${circumference}"
-        />
-      </svg>
-      <div class="ring__label">
-        <strong>${Math.round(ratio * 100)}%</strong>
-        <span>do dia</span>
-      </div>
-    </div>
-  `;
-}

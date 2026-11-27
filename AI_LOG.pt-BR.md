@@ -207,3 +207,19 @@ ambiente e em GitHub Secrets.
   tratava isso como motivo para fechar. Depois a lista aparecia fora do lugar, porque os efeitos
   visuais do modal mudavam a referência da "posição fixa". Agora a lista é rolada manualmente e
   vai para o fim da página enquanto está aberta.
+
+### 27/11/2026 — Redesenho da tela Hoje e da barra lateral (Claude Code)
+
+- **Prompt principal:** uma captura da tela Hoje com "melhora a tela, deixa mais bonita,
+  sutilmente animada e profissional, aproveita e incrementa o design da sidebar".
+- **O que a IA gerou:** um cabeçalho de saudação com o progresso do dia, quatro quadros de resumo,
+  um cartão em destaque para o bloco da vez com o aviso "começa em" atualizado ao vivo, uma linha
+  do tempo do dia, um resumo da semana, e uma barra lateral com o progresso da semana, navegação
+  em grupos com contadores, uma chave de tema e o cartão da conta. No celular entrou uma barra no
+  topo para a conta.
+- **O que o time aproveitou:** o layout inteiro.
+- **O que o time corrigiu ou rejeitou, e por quê:** no navegador, a luz suave atrás da saudação
+  terminava em uma borda vertical dura no tema escuro, e "Provas e entregas" quebrava em duas
+  linhas na barra lateral; os dois foram corrigidos. No celular os quadros de resumo ficavam
+  apertados, então os ícones deles somem ali. Antes desta mudança, não havia como sair da conta
+  pelo celular.
