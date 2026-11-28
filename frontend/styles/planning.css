@@ -1,0 +1,483 @@
+/*
+ * Organising the week: deadlines of the day, history of done sessions, the split dialog, moving
+ * sessions between days and the session reminder in the bottom right corner.
+ */
+
+/* ---------- Deadlines of the day ---------- */
+
+.due-today {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--terracotta-soft) 45%, transparent);
+}
+
+.due-today__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  color: var(--terracotta);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.due-today__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: var(--space-2);
+}
+
+.due {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--tone);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-sm);
+}
+
+.due__art {
+  display: grid;
+  place-items: center;
+}
+
+.due__text {
+  display: grid;
+  min-width: 0;
+}
+
+.due__title {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.due__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+}
+
+.due .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.day-clear {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 500;
+}
+
+/* ---------- Done sessions stay on record ---------- */
+
+.history {
+  margin-bottom: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+}
+
+.history__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+}
+
+.history__summary::-webkit-details-marker {
+  display: none;
+}
+
+.history__summary:focus-visible {
+  border-radius: var(--radius-md);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.history__mark {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.history__chevron {
+  display: grid;
+  margin-left: auto;
+  transition: transform var(--normal) var(--ease-out);
+}
+
+.history[open] .history__chevron {
+  transform: rotate(180deg);
+}
+
+.timeline--history {
+  padding: 0 var(--space-3) var(--space-1);
+}
+
+.timeline--history .moment__card {
+  opacity: 0.82;
+}
+
+/* ---------- Split dialog ---------- */
+
+.split__meter {
+  overflow: hidden;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--paper-deep);
+}
+
+.split__fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--blue));
+  transition: width var(--slow) var(--ease-out);
+}
+
+.split__fill--over {
+  background: linear-gradient(90deg, var(--mustard), var(--terracotta));
+}
+
+.split__note {
+  margin: var(--space-2) 0 var(--space-3);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.split__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.split__tools .chip-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.split__list {
+  display: grid;
+  gap: var(--space-2);
+  transition: opacity var(--normal) var(--ease-out);
+}
+
+.split__list--off {
+  opacity: 0.55;
+}
+
+.split__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--tone);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  animation: rise var(--slow) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 50ms);
+}
+
+.split__art {
+  display: grid;
+  place-items: center;
+}
+
+.split__text {
+  display: grid;
+  min-width: 0;
+}
+
+.split__title {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.split__meta {
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+}
+
+.split__row .stepper {
+  min-width: 150px;
+}
+
+.move__note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--mustard-soft);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.move__note .icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--mustard);
+}
+
+/* ---------- Week: deadlines in each day and moving sessions ---------- */
+
+.day__due {
+  display: grid;
+  gap: 4px;
+}
+
+.day__deadline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--terracotta-soft);
+  color: var(--terracotta);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.day__deadline--assignment {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.day__deadline span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.day__deadline .icon {
+  flex: none;
+}
+
+.block--movable {
+  cursor: grab;
+}
+
+.block--dragging {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+
+.day {
+  transition:
+    border-color var(--fast) var(--ease-out),
+    background-color var(--fast) var(--ease-out),
+    opacity var(--fast) var(--ease-out);
+}
+
+.day--target {
+  border-style: dashed;
+  border-color: var(--accent);
+}
+
+.day--over {
+  background: var(--accent-soft);
+}
+
+.day--closed {
+  opacity: 0.45;
+}
+
+.spread-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.spread-toggle__track {
+  position: relative;
+  width: 30px;
+  height: 18px;
+  border-radius: var(--radius-pill);
+  background: var(--line-strong);
+  transition: background-color var(--normal) var(--ease-out);
+}
+
+.spread-toggle__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--normal) var(--ease-spring);
+}
+
+.spread-toggle[aria-pressed="true"] .spread-toggle__track {
+  background: var(--accent);
+}
+
+.spread-toggle[aria-pressed="true"] .spread-toggle__thumb {
+  transform: translateX(12px);
+}
+
+/* ---------- Session reminder ---------- */
+
+#reminder-root {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 85;
+  width: min(380px, calc(100vw - var(--space-6)));
+}
+
+.reminder {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-4);
+  padding-right: var(--space-7);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--tone);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+  animation: reminder-in 460ms var(--ease-spring);
+  transition:
+    opacity 220ms var(--ease-out),
+    transform 220ms var(--ease-out);
+}
+
+.reminder--leaving {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.reminder__art {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+}
+
+.reminder__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--tone);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.reminder__title {
+  margin: 2px 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  line-height: 1.25;
+}
+
+.reminder__text {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.reminder__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.reminder__close {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+}
+
+@keyframes reminder-in {
+  from {
+    opacity: 0;
+    transform: translate(16px, 16px) scale(0.96);
+  }
+}
+
+@media (max-width: 860px) {
+  #reminder-root {
+    right: var(--space-3);
+    bottom: calc(84px + env(safe-area-inset-bottom));
+    width: calc(100vw - var(--space-6));
+  }
+
+  /* Keep the toast above the reminder when both show. */
+  body:has(#reminder-root .reminder) #toast-root {
+    bottom: calc(84px + 200px + env(safe-area-inset-bottom));
+  }
+
+  .split__row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .split__row .stepper {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 861px) {
+  body:has(#reminder-root .reminder) #toast-root {
+    left: auto;
+    right: calc(var(--space-5) + 400px);
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reminder,
+  .split__row,
+  .reminder .pulse::after {
+    animation: none;
+  }
+
+  .reminder,
+  .split__fill,
+  .spread-toggle__thumb,
+  .history__chevron,
+  .day {
+    transition: none;
+  }
+}

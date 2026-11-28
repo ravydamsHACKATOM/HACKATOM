@@ -1,14 +1,28 @@
-# Arquivos Java compilados
-*.class
-
-# Pastas de compilação
+# Build output
 target/
 build/
+*.class
+
+# Local SQLite database
+backend/data/
 *.db
 *.db-shm
 *.db-wal
+
+# Secrets and local environment (never commit)
+.env
 .env.*
 !.env.example
 
-# Variáveis de ambiente
-.env
+# Node (frontend lint tooling)
+node_modules/
+
+# IDE and OS files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Local tooling
+.claude/

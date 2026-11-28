@@ -2,76 +2,187 @@
 
 [English](README.md) · **Português (Brasil)**
 
-O StudyFlow é uma agenda de estudos para estudantes. Ele permite cadastrar disciplinas, provas e trabalhos, registrar horários semanais disponíveis e gerar blocos de estudo que podem ser visualizados e marcados como concluídos.
+O StudyFlow é um planejador que transforma provas e entregas em um cronograma de estudos
+realista. O estudante informa o que vem pela frente e quando pode estudar de verdade; o
+StudyFlow distribui blocos de foco até cada prazo, mostra o que fazer hoje e refaz o plano quando
+a semana muda.
 
-## Funcionalidades do MVP
+Documentos relacionados: [DECISIONS.pt-BR.md](DECISIONS.pt-BR.md) ·
+[AI_LOG.pt-BR.md](AI_LOG.pt-BR.md) · [Briefing](docs/BRIEFING.pt-BR.md) · [AGENTS.md](AGENTS.md)
 
-- Cadastrar, editar, listar e excluir disciplinas e eventos de estudo.
-- Informar janelas recorrentes de disponibilidade semanal.
-- Gerar blocos de estudo de 50 minutos, com intervalos de 10 minutos, respeitando a disponibilidade e os prazos.
-- Visualizar o cronograma da semana e os blocos do dia; concluir ou reabrir blocos.
-- Salvar os dados em um banco SQLite local.
+## Equipe
 
-O planejador atual usa regras determinísticas e não está conectado a um provedor de IA. Se o tempo disponível for insuficiente, ele cria os blocos que couberem, mas ainda não informa o esforço que ficou sem alocação. Ao editar um prazo ou disponibilidade, é preciso gerar o cronograma novamente.
+- **Turma:** TDS — turmas mistas 6570, 6756 e 6863
+- **Tech Lead:** Ana Carolina Dutra
+- **Responsável pela apresentação:** Victor Fanti Antonietti
+- **Integrantes:**
+  - Ana Carolina Dutra — [@dutranacarolina](https://github.com/dutranacarolina)
+  - Victor Fanti Antonietti
+  - Raphael Vieira Lutkemeyer Sausen
+  - Yuri José Machado Ribeiro
 
-## Tecnologias
+## Tema / área
 
-- Java 21.0.7 e Spring Boot 3.5.7
-- HTML, CSS e JavaScript servidos pelo Spring Boot
-- SQLite via JDBC
-- Maven Wrapper
+Agenda de estudos — vida no campus e comunidade.
 
-## Estrutura do repositório
+## Problema
+
+No curso técnico a semana se enche de provas, entregas e projetos. O calendário oficial diz
+quando algo vence, mas não diz quando estudar nem quanto tempo reservar. Muita gente improvisa na
+véspera, subestima o esforço ou fica com duas entregas pesadas no mesmo dia. Quando existe um
+plano, ele raramente sobrevive à primeira mudança.
+
+Isso atinge quem tem várias entregas na mesma semana, quem trava na hora de começar e quem teve
+um imprevisto e precisa remanejar tudo.
+
+## Solução
+
+O estudante cadastra disciplinas, provas e entregas (com data e estimativa de esforço em horas) e
+as janelas da semana em que pode estudar. A partir disso, o StudyFlow:
+
+1. **Gera a semana**: blocos de foco de 50 minutos com pausas de 10, sempre dentro dos horários
+   livres do estudante, com o prazo mais urgente primeiro.
+2. **Mostra o que fazer hoje**, com o progresso do dia, todas as provas e entregas do dia e os
+   próximos prazos. Sessões concluídas saem da lista de pendentes e continuam registradas.
+3. **Mostra a semana inteira** em um calendário simples, com os prazos de cada dia. As sessões
+   podem mudar de dia (pelo botão ou arrastando) sem mudar nenhum prazo real, e a semana pode ser
+   espalhada para estudar um pouco em cada dia.
+4. **Ajusta o plano**: um bloco pode ser concluído, travado no horário ou adiado. Adiar um bloco
+   ou mudar um prazo refaz o resto da semana e lista o que mudou. Quando há mais de uma prova
+   ou entrega, o estudante escolhe quantas horas cada uma recebe.
+5. **Avisa quando o esforço não cabe** antes de um prazo, em vez de montar um cronograma bonito
+   e impossível de cumprir. O estudante decide o que cortar ou antecipar.
+6. **Explica o plano** em linguagem simples: como ficou a semana, o que mudou e dicas práticas.
+7. **Avisa o estudante** com um cartão no canto inferior direito da página quando chega a hora
+   de uma sessão de estudo.
+
+### Onde a IA entra
+
+- **No processo:** código, testes, imagens e documentação foram produzidos com apoio de IA e
+  revisados pelo time. As ilustrações, os ícones e as texturas de papel foram gerados com um
+  modelo de imagem rodando no nosso próprio notebook. Tudo está registrado no
+  [AI_LOG.pt-BR.md](AI_LOG.pt-BR.md).
+- **No produto:** o plano é montado e explicado por regras fixas, sem serviço pago de IA por trás,
+  então o app funciona offline e não precisa de chave de API. Testamos uma explicação escrita por
+  um modelo de linguagem e retiramos; os motivos estão no [DECISIONS.pt-BR.md](DECISIONS.pt-BR.md).
+
+### Recorte do MVP
+
+Entra: os pontos acima, contas com cadastro e login (cada estudante vê só os próprios
+dados), temas claro e escuro, layout responsivo e uma semana de exemplo que pode ser carregada
+com um clique. Fica de fora, de propósito: integração com o sistema acadêmico, notificações por
+push ou e-mail (o aviso aparece na página aberta),
+sessões de estudo em grupo, importação de dados e recuperação de senha por e-mail. Os motivos
+estão no [DECISIONS.pt-BR.md](DECISIONS.pt-BR.md).
+
+## Stack
+
+| Camada | Tecnologia |
+| --- | --- |
+| Back-end | Java 21, Spring Boot 3.5 (Web, Validation, JDBC) |
+| Contas | Senhas com hash BCrypt, sessões no servidor em cookie HttpOnly |
+| Banco de dados | SQLite, com migrações Flyway |
+| Front-end | HTML, CSS e módulos JavaScript, sem etapa de build |
+| Testes | JUnit 5, AssertJ, MockMvc; test runner do Node no front-end |
+| Lint | Spotless (google-java-format), ESLint, Prettier, commitlint |
+| CI | GitHub Actions |
+
+## Estrutura de pastas
 
 ```text
-.
-├── .github/workflows/ci.yml
-├── docs/                                 # Briefings e materiais arquivados
-├── studyflow-springboot/studyflow-springboot/
-│   ├── pom.xml
-│   └── src/
-│       ├── main/java/                    # API REST e regras de negócio
-│       ├── main/resources/static/        # Front-end web
-│       └── test/java/                   # Testes automatizados
-├── README.md
-├── README.pt-BR.md
-├── DECISIONS.md
-├── DECISIONS.pt-BR.md
-├── AI_LOG.md
-└── AI_LOG.pt-BR.md
+/
+├── README.md / README.pt-BR.md
+├── DECISIONS.md / DECISIONS.pt-BR.md
+├── AI_LOG.md / AI_LOG.pt-BR.md
+├── AGENTS.md                  convenções para pessoas e agentes de IA que trabalham aqui
+├── backend/                   aplicação Spring Boot
+│   └── src/main/java/com/studyflow/
+│       ├── auth/              contas, sessões e a proteção da API
+│       ├── discipline/        disciplinas (CRUD)
+│       ├── event/             provas e entregas (CRUD)
+│       ├── availability/      horários livres da semana (CRUD)
+│       ├── plan/              plano semanal: serviço, endpoints, persistência
+│       │   └── engine/        o agendador, em Java puro, sem framework
+│       ├── advisor/           explicação do plano, escrita por regras fixas
+│       └── common/            erros, relógio, health check
+├── frontend/                  interface estática servida pelo back-end
+│   ├── index.html
+│   ├── styles/                tokens de design, base, componentes, telas
+│   ├── js/                    cliente da API, templates, controles de formulário, um módulo por tela
+│   ├── assets/                ilustrações, ícones e texturas de papel
+│   └── tests/                 testes unitários dos formatadores
+├── docs/                      briefing original do hackathon
+└── .github/workflows/ci.yml   pipeline
 ```
 
-## Executar localmente
+## Como rodar
 
-Requisito: Java 21.0.7. O Maven Wrapper baixa o Maven quando necessário.
+### Pré-requisitos
 
-No PowerShell, dentro de `studyflow-springboot/studyflow-springboot`:
+- Java 21 (JDK)
+- Nada mais para rodar o app: o Maven vem pelo wrapper e o SQLite é embutido.
+- Node 22 ou mais novo, só para o lint e os testes do front-end.
 
-```powershell
-.\mvnw.cmd spring-boot:run
-```
+### Back-end e front-end juntos
 
-No macOS ou Linux:
+O back-end serve o front-end, então um comando sobe tudo:
 
 ```bash
-bash ./mvnw spring-boot:run
+cd backend
+./mvnw spring-boot:run        # Windows: mvnw.cmd spring-boot:run
 ```
 
-Abra <http://localhost:8080>. O banco é criado em `data/studyflow.db`.
+Abra <http://localhost:8080>. O banco é criado em `backend/data/studyflow.db`.
+Crie uma conta na primeira tela e escolha **"Preencher com um exemplo"** para carregar uma semana
+de demonstração. O `.env.example` lista as configurações opcionais.
 
-## Verificações de qualidade
-
-Na pasta do projeto backend:
+### Testes e lint
 
 ```bash
-bash ./mvnw checkstyle:check
-bash ./mvnw clean verify
+cd backend && ./mvnw verify          # compila, 44 testes, checagem de formato, jar
+cd frontend && npm ci && npm run lint && npm test
 ```
 
-O GitHub Actions executa Checkstyle e a verificação do Maven em pushes e pull requests.
+`./mvnw spotless:apply` e `npm run format` corrigem a formatação.
 
-## Situação da entrega
+### Endpoints principais
 
-- Publicação: ainda não configurada.
-- Repositório: <https://github.com/ravydamsHACKATOM/HACKATOM>
-- É preciso confirmar nas configurações do GitHub o colaborador professor, a proteção da branch `main` e as regras de revisão obrigatória.
+| Método | Endpoint | Para que serve |
+| --- | --- | --- |
+| POST | `/api/auth/register`, `/api/auth/login`, `/api/auth/logout` | Cadastro, login e logout |
+| GET | `/api/auth/me` | O estudante logado |
+| GET, POST, PUT, DELETE | `/api/disciplines` | Disciplinas |
+| GET, POST, PUT, DELETE | `/api/events` | Provas e entregas, com progresso |
+| GET, POST, PUT, DELETE | `/api/availability` | Horários livres da semana |
+| GET | `/api/plan?date=` | Plano da semana que contém a data |
+| POST | `/api/plan/generate?date=` | Gera ou refaz a semana |
+| PUT | `/api/plan/settings?date=` | Horas por prova ou entrega e modo espalhado; refaz a semana |
+| PATCH | `/api/blocks/{id}/done` | Conclui um bloco ou desfaz |
+| PATCH | `/api/blocks/{id}/locked` | Trava um bloco no horário |
+| POST | `/api/blocks/{id}/postpone` | Adia um bloco e refaz a semana |
+| POST | `/api/blocks/{id}/move` | Move um bloco para outro dia ou horário da semana |
+| GET | `/api/health` | Health check |
+
+Todas as rotas, menos as três de autenticação acima e o health check, exigem sessão.
+
+## CI/CD
+
+A pipeline em [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda em todo pull request e
+em todo push na `main` e na `develop`:
+
+- **Backend:** `./mvnw verify`: build, testes unitários e de API, checagem de formato com
+  Spotless e o jar executável. Os relatórios de teste sobem como artefato.
+- **Frontend:** ESLint, checagem do Prettier e testes unitários.
+- **Conventional Commits:** nos pull requests, o commitlint valida o título do PR e a mensagem de
+  cada commit conforme o [`commitlint.config.js`](commitlint.config.js).
+
+## Deploy
+
+O deploy automático ainda não foi configurado. A aplicação roda localmente a partir de um único
+jar (`backend/target/studyflow-1.0.0.jar`), que é como ela é demonstrada.
+
+## Links
+
+- **Repositório:** <https://github.com/ravydamsHACKATOM/HACKATOM>
+- **Deploy (se houver):** não publicado
+- **Board / projeto no GitHub (se houver):** não há
