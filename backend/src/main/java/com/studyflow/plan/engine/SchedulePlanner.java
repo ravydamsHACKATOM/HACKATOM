@@ -32,6 +32,10 @@ import java.util.Map;
  *   <li>After two sessions in a row of the same subject the planner switches to another one, but
  *       only when the urgent subject still has enough slack to finish on time.
  *   <li>A deadline beyond this week only takes its proportional share of the week.
+ *   <li>When the student chose how many minutes an event gets this week, that choice replaces the
+ *       automatic share, capped at the effort still left.
+ *   <li>In the spread mode each day gets at most an even share of the week's work, so the student
+ *       studies a little every day; whatever that leaves out still goes into the free time left.
  *   <li>What does not fit is reported as a shortfall instead of being squeezed in.
  * </ol>
  */
@@ -50,6 +54,42 @@ public class SchedulePlanner {
     input.events().forEach(event -> events.put(event.id(), event));
 
     List<PlannedBlock> blocks = new ArrayList<>();
+    if (input.spread()) {
+      fill(free, quota, events, blocks, dailyCap(free, quota));
+      if (quota.values().stream().anyMatch(left -> left > 0)) {
+        // The even share left something out: use the remaining free time, as the normal mode would.
+        List<TimeRange> busy = new ArrayList<>(input.busy());
+        blocks.forEach(block -> busy.add(new TimeRange(block.date(), block.start(), block.end())));
+        PlannerInput rest =
+            new PlannerInput(
+                input.weekStart(), input.from(), input.windows(), busy, input.events(), false);
+        fill(freeRanges(rest), quota, events, blocks, Integer.MAX_VALUE);
+      }
+      blocks.sort(Comparator.comparing(PlannedBlock::date).thenComparing(PlannedBlock::start));
+    } else {
+      fill(free, quota, events, blocks, Integer.MAX_VALUE);
+    }
+
+    List<Shortfall> shortfalls =
+        quota.entrySet().stream()
+            .filter(entry -> entry.getValue() > 0)
+            .map(entry -> new Shortfall(entry.getKey(), entry.getValue()))
+            .toList();
+    int freeMinutes = free.stream().mapToInt(TimeRange::minutes).sum();
+    return new PlannerResult(tagReviews(blocks, events, quota, input), shortfalls, freeMinutes);
+  }
+
+  /**
+   * Places focus sessions in the free ranges, most urgent first, without going over {@code
+   * dailyCap} minutes of study on any day.
+   */
+  private static void fill(
+      List<TimeRange> free,
+      Map<Long, Integer> quota,
+      Map<Long, PlannerEvent> events,
+      List<PlannedBlock> blocks,
+      int dailyCap) {
+    Map<LocalDate, Integer> usedPerDay = new HashMap<>();
     for (int index = 0; index < free.size(); index++) {
       TimeRange range = free.get(index);
       LocalTime cursor = range.start();
@@ -57,6 +97,10 @@ public class SchedulePlanner {
       int streak = 0;
 
       while (minutesBetween(cursor, range.end()) >= MIN_BLOCK_MINUTES) {
+        int leftToday = dailyCap - usedPerDay.getOrDefault(range.date(), 0);
+        if (leftToday <= 0) {
+          break;
+        }
         List<PlannerEvent> candidates = candidates(events, quota, range.date());
         if (candidates.isEmpty()) {
           break;
@@ -75,10 +119,14 @@ public class SchedulePlanner {
 
         int available = minutesBetween(cursor, range.end());
         int wanted = Math.max(SHORTEST_TAIL_MINUTES, roundUpToFive(quota.get(chosen.id())));
-        int length = Math.min(FOCUS_MINUTES, Math.min(available, wanted));
+        int length =
+            Math.min(
+                Math.min(FOCUS_MINUTES, Math.max(MIN_BLOCK_MINUTES, leftToday)),
+                Math.min(available, wanted));
         blocks.add(
             new PlannedBlock(chosen.id(), range.date(), cursor, cursor.plusMinutes(length), false));
         quota.merge(chosen.id(), -length, (left, used) -> Math.max(0, left + used));
+        usedPerDay.merge(range.date(), length, Integer::sum);
 
         streak = previous != null && previous == chosen.id() ? streak + 1 : 1;
         previous = chosen.id();
@@ -88,14 +136,16 @@ public class SchedulePlanner {
         cursor = cursor.plusMinutes(length + BREAK_MINUTES);
       }
     }
+  }
 
-    List<Shortfall> shortfalls =
-        quota.entrySet().stream()
-            .filter(entry -> entry.getValue() > 0)
-            .map(entry -> new Shortfall(entry.getKey(), entry.getValue()))
-            .toList();
-    int freeMinutes = free.stream().mapToInt(TimeRange::minutes).sum();
-    return new PlannerResult(tagReviews(blocks, events, quota, input), shortfalls, freeMinutes);
+  /** An even share of the week's work per day that has free time, rounded up to 5 minutes. */
+  private static int dailyCap(List<TimeRange> free, Map<Long, Integer> quota) {
+    long days = free.stream().map(TimeRange::date).distinct().count();
+    int total = quota.values().stream().mapToInt(Integer::intValue).sum();
+    if (days == 0 || total == 0) {
+      return Integer.MAX_VALUE;
+    }
+    return Math.max(MIN_BLOCK_MINUTES, roundUpToFive((int) Math.ceil(total / (double) days)));
   }
 
   /** Availability from {@code input.from()} to the end of the week, minus the busy ranges. */
@@ -151,6 +201,13 @@ public class SchedulePlanner {
         .forEach(
             event -> {
               if (event.remainingMinutes() <= 0) {
+                return;
+              }
+              if (event.targetMinutes() != null) {
+                int chosen = Math.min(event.remainingMinutes(), event.targetMinutes());
+                if (chosen > 0) {
+                  quota.put(event.id(), chosen);
+                }
                 return;
               }
               if (!event.lastStudyDay().isAfter(input.weekEnd())) {

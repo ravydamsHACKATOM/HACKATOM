@@ -15,10 +15,14 @@ import com.studyflow.event.EventType;
 import com.studyflow.event.StudyEvent;
 import com.studyflow.event.StudyEventRepository;
 import com.studyflow.plan.PlanNoteRepository.StoredNote;
+import com.studyflow.plan.PlanRequests.SettingsRequest;
+import com.studyflow.plan.PlanView.Allocation;
 import com.studyflow.plan.PlanView.Changes;
 import com.studyflow.plan.PlanView.EventDelta;
+import com.studyflow.plan.PlanView.Settings;
 import com.studyflow.plan.PlanView.Stats;
 import com.studyflow.plan.PlanView.Warning;
+import com.studyflow.plan.WeekPreferencesRepository.WeekPreferences;
 import com.studyflow.plan.engine.PlannerModels.PlannedBlock;
 import com.studyflow.plan.engine.PlannerModels.PlannerEvent;
 import com.studyflow.plan.engine.PlannerModels.PlannerInput;
@@ -30,6 +34,7 @@ import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
@@ -52,6 +57,7 @@ public class PlanService {
   private final DisciplineRepository disciplines;
   private final AvailabilityRepository availability;
   private final PlanNoteRepository notes;
+  private final WeekPreferencesRepository preferences;
   private final DataRevision revision;
   private final PlanAdvisor advisor;
   private final Clock clock;
@@ -63,6 +69,7 @@ public class PlanService {
       DisciplineRepository disciplines,
       AvailabilityRepository availability,
       PlanNoteRepository notes,
+      WeekPreferencesRepository preferences,
       DataRevision revision,
       PlanAdvisor advisor,
       Clock clock) {
@@ -71,6 +78,7 @@ public class PlanService {
     this.disciplines = disciplines;
     this.availability = availability;
     this.notes = notes;
+    this.preferences = preferences;
     this.revision = revision;
     this.advisor = advisor;
     this.clock = clock;
@@ -152,6 +160,72 @@ public class PlanService {
     return generate(userId, block.date());
   }
 
+  /**
+   * Saves how the student wants the week organised (spread over the days, minutes per exam or
+   * assignment) and regenerates it with those choices.
+   */
+  @Transactional
+  public PlanView configure(long userId, LocalDate anyDayOfWeek, SettingsRequest request) {
+    Set<Long> owned =
+        events.findAll(userId).stream().map(StudyEvent::id).collect(Collectors.toSet());
+    Map<Long, Integer> allocations = new LinkedHashMap<>();
+    request
+        .allocations()
+        .forEach(
+            allocation -> {
+              if (!owned.contains(allocation.eventId())) {
+                throw new NotFoundException("Event", allocation.eventId());
+              }
+              allocations.put(allocation.eventId(), allocation.minutes());
+            });
+    preferences.save(
+        userId, mondayOf(anyDayOfWeek), new WeekPreferences(request.spread(), allocations));
+    return generate(userId, anyDayOfWeek);
+  }
+
+  /**
+   * Moves a planned block to another day or time of the same week. Only the study session moves:
+   * the exam or assignment keeps its real date. The block is locked in its new place.
+   */
+  @Transactional
+  public PlanView move(long userId, long blockId, LocalDate date, LocalTime start) {
+    StudyBlock block = require(userId, blockId);
+    if (block.status() != BlockStatus.PLANNED) {
+      throw new BusinessRuleException("BLOCK_NOT_PLANNED", "Only planned blocks can be moved");
+    }
+    if (!mondayOf(date).equals(mondayOf(block.date()))) {
+      throw new BusinessRuleException(
+          "BLOCK_OTHER_WEEK", "A block can only move inside its own week");
+    }
+    LocalTime begin = start.withSecond(0).withNano(0);
+    int minutes = block.getMinutes();
+    if (begin.toSecondOfDay() / 60 + minutes > 24 * 60) {
+      throw new BusinessRuleException("BLOCK_CROSSES_MIDNIGHT", "The block must end the same day");
+    }
+    LocalTime end = begin.plusMinutes(minutes);
+    if (date.atTime(begin).isBefore(LocalDateTime.now(clock))) {
+      throw new BusinessRuleException("BLOCK_IN_PAST", "A block cannot move into the past");
+    }
+    StudyEvent event =
+        events
+            .findById(userId, block.eventId())
+            .orElseThrow(() -> new NotFoundException("Event", block.eventId()));
+    if (date.isAfter(event.lastStudyDay())) {
+      throw new BusinessRuleException(
+          "BLOCK_AFTER_DEADLINE", "A study block must happen before its deadline");
+    }
+    boolean overlaps =
+        blocks.findBetween(userId, date, date).stream()
+            .filter(other -> other.id() != blockId)
+            .filter(other -> other.status() != BlockStatus.MISSED)
+            .anyMatch(other -> other.startTime().isBefore(end) && begin.isBefore(other.endTime()));
+    if (overlaps) {
+      throw new BusinessRuleException("BLOCK_OVERLAP", "Another block already uses that time");
+    }
+    blocks.moveTo(blockId, date, begin, end);
+    return view(userId, date);
+  }
+
   private StudyBlock require(long userId, long blockId) {
     return blocks
         .findById(userId, blockId)
@@ -174,6 +248,16 @@ public class PlanService {
             .collect(
                 Collectors.groupingBy(
                     StudyBlock::eventId, Collectors.summingInt(StudyBlock::getMinutes)));
+    // Done and kept blocks of this week already count toward the minutes the student chose.
+    Map<Long, Integer> keptThisWeek =
+        kept.stream()
+            .filter(
+                block ->
+                    block.status() == BlockStatus.PLANNED || block.status() == BlockStatus.DONE)
+            .collect(
+                Collectors.groupingBy(
+                    StudyBlock::eventId, Collectors.summingInt(StudyBlock::getMinutes)));
+    WeekPreferences chosen = preferences.find(userId, weekStart);
 
     List<PlannerEvent> pending =
         events.findAll(userId).stream()
@@ -185,7 +269,8 @@ public class PlanService {
                         event.lastStudyDay(),
                         event.remainingMinutes() - keptPlanned.getOrDefault(event.id(), 0),
                         weights.getOrDefault(event.disciplineId(), 2),
-                        event.type() == EventType.EXAM))
+                        event.type() == EventType.EXAM,
+                        target(chosen, event.id(), keptThisWeek)))
             .filter(event -> event.remainingMinutes() > 0)
             .toList();
 
@@ -194,7 +279,14 @@ public class PlanService {
             .filter(block -> block.status() != BlockStatus.MISSED)
             .map(block -> new TimeRange(block.date(), block.startTime(), block.endTime()))
             .toList();
-    return new PlannerInput(weekStart, from, windows(userId), busy, pending);
+    return new PlannerInput(weekStart, from, windows(userId), busy, pending, chosen.spread());
+  }
+
+  /** Minutes still to place for an event the student gave a share to; null when automatic. */
+  private static Integer target(
+      WeekPreferences chosen, long eventId, Map<Long, Integer> keptThisWeek) {
+    Integer minutes = chosen.allocations().get(eventId);
+    return minutes == null ? null : Math.max(0, minutes - keptThisWeek.getOrDefault(eventId, 0));
   }
 
   private List<WeeklyWindow> windows(long userId) {
@@ -239,7 +331,17 @@ public class PlanService {
         warnings,
         stats,
         stored.map(StoredNote::note).orElse(null),
-        changes);
+        changes,
+        settings(userId, weekStart));
+  }
+
+  private Settings settings(long userId, LocalDate weekStart) {
+    WeekPreferences chosen = preferences.find(userId, weekStart);
+    return new Settings(
+        chosen.spread(),
+        chosen.allocations().entrySet().stream()
+            .map(entry -> new Allocation(entry.getKey(), entry.getValue()))
+            .toList());
   }
 
   /** Events that must be finished by the end of this week but still have uncovered effort. */

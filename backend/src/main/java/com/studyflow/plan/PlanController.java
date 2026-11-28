@@ -1,6 +1,8 @@
 package com.studyflow.plan;
 
 import com.studyflow.auth.AuthInterceptor;
+import com.studyflow.plan.PlanRequests.MoveRequest;
+import com.studyflow.plan.PlanRequests.SettingsRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.time.Clock;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -66,6 +69,24 @@ public class PlanController {
   @PostMapping("/blocks/{id}/postpone")
   PlanView postpone(@RequestAttribute(AuthInterceptor.USER_ID) long userId, @PathVariable long id) {
     return plans.postpone(userId, id);
+  }
+
+  /** Saves how the week should be organised and regenerates it. */
+  @PutMapping("/plan/settings")
+  PlanView settings(
+      @RequestAttribute(AuthInterceptor.USER_ID) long userId,
+      @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate date,
+      @Valid @RequestBody SettingsRequest request) {
+    return plans.configure(userId, orToday(date), request);
+  }
+
+  /** Moves a planned block to another day or time of its week. */
+  @PostMapping("/blocks/{id}/move")
+  PlanView move(
+      @RequestAttribute(AuthInterceptor.USER_ID) long userId,
+      @PathVariable long id,
+      @Valid @RequestBody MoveRequest request) {
+    return plans.move(userId, id, request.date(), request.startTime());
   }
 
   private LocalDate orToday(LocalDate date) {

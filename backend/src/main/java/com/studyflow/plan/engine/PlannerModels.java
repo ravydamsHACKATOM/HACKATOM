@@ -19,9 +19,21 @@ public final class PlannerModels {
    * @param remainingMinutes effort not yet covered by done or fixed blocks
    * @param weight discipline priority, 1 to 3, used to break ties
    * @param exam exams get their final block tagged as a review session
+   * @param targetMinutes minutes the student chose for this week; null lets the planner decide
    */
   public record PlannerEvent(
-      long id, LocalDate lastStudyDay, int remainingMinutes, int weight, boolean exam) {}
+      long id,
+      LocalDate lastStudyDay,
+      int remainingMinutes,
+      int weight,
+      boolean exam,
+      Integer targetMinutes) {
+
+    public PlannerEvent(
+        long id, LocalDate lastStudyDay, int remainingMinutes, int weight, boolean exam) {
+      this(id, lastStudyDay, remainingMinutes, weight, exam, null);
+    }
+  }
 
   /** A recurring weekly range in which the student can study. */
   public record WeeklyWindow(DayOfWeek day, LocalTime start, LocalTime end) {}
@@ -40,13 +52,25 @@ public final class PlannerModels {
    * @param weekStart Monday of the week being planned
    * @param from nothing is scheduled before this instant
    * @param busy ranges that are already taken (done, locked or skipped blocks)
+   * @param spread true to share the study time out over the days instead of filling the first free
+   *     evenings
    */
   public record PlannerInput(
       LocalDate weekStart,
       LocalDateTime from,
       List<WeeklyWindow> windows,
       List<TimeRange> busy,
-      List<PlannerEvent> events) {
+      List<PlannerEvent> events,
+      boolean spread) {
+
+    public PlannerInput(
+        LocalDate weekStart,
+        LocalDateTime from,
+        List<WeeklyWindow> windows,
+        List<TimeRange> busy,
+        List<PlannerEvent> events) {
+      this(weekStart, from, windows, busy, events, false);
+    }
 
     public LocalDate weekEnd() {
       return weekStart.plusDays(6);

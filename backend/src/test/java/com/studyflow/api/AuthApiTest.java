@@ -4,13 +4,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studyflow.auth.AuthInterceptor;
 import jakarta.servlet.http.Cookie;
+import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +21,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -169,6 +173,74 @@ class AuthApiTest {
 
     mvc.perform(get("/api/disciplines").cookie(ana))
         .andExpect(jsonPath("$[0].name").value("Banco de Dados"));
+  }
+
+  @Test
+  void oneAccountCannotReorganiseAnotherAccountsWeek() throws Exception {
+    Cookie ana = TestAccounts.register(context, "ana@example.com");
+    Cookie victor = TestAccounts.register(context, "victor@example.com");
+    long discipline =
+        read(mvc.perform(
+                postJson(
+                        "/api/disciplines",
+                        """
+                            {"name": "Redes", "color": "#3F6B5C", "icon": "code", "weight": 2}
+                            """)
+                    .cookie(ana)))
+            .get("id")
+            .asLong();
+    long event =
+        read(mvc.perform(
+                postJson(
+                        "/api/events",
+                        """
+                            {"disciplineId": %d, "title": "Trabalho", "type": "ASSIGNMENT",
+                             "dueDate": "%s", "effortHours": 2}
+                            """
+                            .formatted(discipline, LocalDate.now().plusDays(10)))
+                    .cookie(ana)))
+            .get("id")
+            .asLong();
+    for (String day :
+        new String[] {
+          "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"
+        }) {
+      mvc.perform(
+          postJson(
+                  "/api/availability",
+                  """
+                  {"dayOfWeek": "%s", "startTime": "00:00", "endTime": "23:55"}
+                  """
+                      .formatted(day))
+              .cookie(ana));
+    }
+    String nextWeek = LocalDate.now().plusDays(7).toString();
+    JsonNode plan = read(mvc.perform(post("/api/plan/generate?date=" + nextWeek).cookie(ana)));
+    JsonNode block = plan.at("/blocks/0");
+
+    mvc.perform(
+            put("/api/plan/settings")
+                .cookie(victor)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"spread": false, "allocations": [{"eventId": %d, "minutes": 60}]}
+                    """
+                        .formatted(event)))
+        .andExpect(status().isNotFound());
+    mvc.perform(
+            postJson(
+                    "/api/blocks/" + block.get("id").asLong() + "/move",
+                    """
+                    {"date": "%s", "startTime": "10:00"}
+                    """
+                        .formatted(block.get("date").asText()))
+                .cookie(victor))
+        .andExpect(status().isNotFound());
+  }
+
+  private JsonNode read(ResultActions result) throws Exception {
+    return json.readTree(result.andReturn().getResponse().getContentAsString());
   }
 
   private static String account(String name, String email, String password) {

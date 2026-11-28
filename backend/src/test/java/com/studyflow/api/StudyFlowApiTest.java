@@ -15,6 +15,8 @@ import jakarta.servlet.http.Cookie;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.HashSet;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,6 +63,8 @@ class StudyFlowApiTest {
   void signInAsNewStudent() throws Exception {
     for (String table :
         new String[] {
+          "week_allocations",
+          "week_preferences",
           "study_blocks",
           "study_events",
           "availability_windows",
@@ -294,6 +298,205 @@ class StudyFlowApiTest {
     mvc.perform(delete("/api/events/12345"))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+  }
+
+  @Test
+  void dividesTheWeekBetweenSeveralDeadlines() throws Exception {
+    long discipline = createDiscipline("Banco de Dados");
+    long exam = createEvent(discipline, "Prova de SQL", "EXAM", "2026-11-28", 5);
+    long project = createEvent(discipline, "Projeto final", "ASSIGNMENT", "2026-11-27", 5);
+    weekdayEvenings();
+
+    JsonNode plan =
+        settings(
+            """
+            {"spread": false, "allocations": [
+              {"eventId": %d, "minutes": 100}, {"eventId": %d, "minutes": 200}]}
+            """
+                .formatted(exam, project));
+
+    assertThat(minutesOf(plan, exam)).isEqualTo(100);
+    assertThat(minutesOf(plan, project)).isEqualTo(200);
+    assertThat(plan.at("/settings/allocations")).hasSize(2);
+
+    JsonNode reloaded = read(mvc.perform(get("/api/plan")).andExpect(status().isOk()));
+    assertThat(reloaded.at("/settings/allocations/0/minutes").asInt()).isEqualTo(100);
+    JsonNode regenerated = generate();
+    assertThat(minutesOf(regenerated, exam)).isEqualTo(100);
+    assertThat(minutesOf(regenerated, project)).isEqualTo(200);
+  }
+
+  @Test
+  void chosenMinutesCountWhatIsAlreadyDoneThisWeek() throws Exception {
+    long discipline = createDiscipline("Redes");
+    long event = createEvent(discipline, "Trabalho de Redes", "ASSIGNMENT", "2026-11-27", 5);
+    weekdayEvenings();
+    JsonNode plan =
+        settings(
+            """
+            {"spread": false, "allocations": [{"eventId": %d, "minutes": 150}]}
+            """
+                .formatted(event));
+    mvc.perform(
+            patchJson(
+                "/api/blocks/" + plan.at("/blocks/0/id").asLong() + "/done", "{\"value\":true}"))
+        .andExpect(status().isOk());
+
+    JsonNode regenerated = generate();
+
+    assertThat(minutesOf(regenerated, event)).isEqualTo(150);
+    assertThat(regenerated.at("/stats/doneMinutes").asInt()).isEqualTo(50);
+  }
+
+  @Test
+  void spreadingTheWeekPutsSomeStudyOnEveryDay() throws Exception {
+    long discipline = createDiscipline("Inglês");
+    createEvent(discipline, "Apresentação", "ASSIGNMENT", "2026-11-29", 4);
+    weekdayEvenings();
+
+    JsonNode packed = generate();
+    JsonNode spread = settings("{\"spread\": true, \"allocations\": []}");
+
+    assertThat(distinctDates(packed)).isEqualTo(2);
+    assertThat(distinctDates(spread)).isEqualTo(5);
+    assertThat(spread.at("/stats/plannedMinutes").asInt()).isEqualTo(240);
+    assertThat(spread.at("/settings/spread").asBoolean()).isTrue();
+  }
+
+  @Test
+  void rejectsAllocationsForEventsTheStudentDoesNotHave() throws Exception {
+    weekdayEvenings();
+    mvc.perform(
+            put("/api/plan/settings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"spread\": false, \"allocations\": [{\"eventId\": 999, \"minutes\": 50}]}"))
+        .andExpect(status().isNotFound());
+    mvc.perform(
+            put("/api/plan/settings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"spread\": false, \"allocations\": [{\"eventId\": 1, \"minutes\": -5}]}"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void movingABlockKeepsTheRealDeadline() throws Exception {
+    long discipline = createDiscipline("Banco de Dados");
+    long exam = createEvent(discipline, "Prova de SQL", "EXAM", "2026-11-27", 1.5);
+    createWindow("MONDAY", "18:00", "20:00");
+    JsonNode plan = generate();
+    long block = plan.at("/blocks/0/id").asLong();
+
+    JsonNode movedPlan = read(move(block, "2026-11-25", "14:00").andExpect(status().isOk()));
+
+    JsonNode stored = findBlock(movedPlan, block);
+    assertThat(stored.get("date").asText()).isEqualTo("2026-11-25");
+    assertThat(stored.get("startTime").asText()).isEqualTo("14:00:00");
+    assertThat(stored.get("endTime").asText()).isEqualTo("14:50:00");
+    assertThat(stored.get("locked").asBoolean()).isTrue();
+    assertThat(event(exam).get("dueDate").asText()).isEqualTo("2026-11-27");
+    assertThat(event(exam).get("effortMinutes").asInt()).isEqualTo(90);
+
+    JsonNode regenerated = generate();
+    assertThat(findBlock(regenerated, block).get("date").asText()).isEqualTo("2026-11-25");
+    assertThat(regenerated.at("/stats/plannedMinutes").asInt()).isEqualTo(90);
+  }
+
+  @Test
+  void movingABlockRejectsSlotsThatBreakTheRules() throws Exception {
+    long discipline = createDiscipline("Banco de Dados");
+    createEvent(discipline, "Prova de SQL", "EXAM", "2026-11-26", 2);
+    createWindow("MONDAY", "18:00", "21:00");
+    JsonNode plan = generate();
+    long first = plan.at("/blocks/0/id").asLong();
+    String secondStart = plan.at("/blocks/1/startTime").asText().substring(0, 5);
+
+    expectRule(move(first, "2026-11-23", "07:00"), "BLOCK_IN_PAST");
+    expectRule(move(first, "2026-11-26", "10:00"), "BLOCK_AFTER_DEADLINE");
+    expectRule(move(first, "2026-11-23", secondStart), "BLOCK_OVERLAP");
+    expectRule(move(first, "2026-11-30", "10:00"), "BLOCK_OTHER_WEEK");
+    expectRule(move(first, "2026-11-24", "23:40"), "BLOCK_CROSSES_MIDNIGHT");
+  }
+
+  @Test
+  void aCompletedBlockLeavesThePendingListButStaysRecorded() throws Exception {
+    long discipline = createDiscipline("Redes");
+    long event = createEvent(discipline, "Trabalho de Redes", "ASSIGNMENT", "2026-11-25", 2);
+    createWindow("MONDAY", "18:00", "21:00");
+    JsonNode plan = generate();
+    long block = plan.at("/blocks/0/id").asLong();
+
+    mvc.perform(patchJson("/api/blocks/" + block + "/done", "{\"value\":true}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("DONE"));
+    JsonNode regenerated = generate();
+
+    assertThat(findBlock(regenerated, block).get("status").asText()).isEqualTo("DONE");
+    assertThat(regenerated.at("/stats/doneMinutes").asInt()).isEqualTo(50);
+    assertThat(event(event).get("doneMinutes").asInt()).isEqualTo(50);
+    assertThat(event(event).get("dueDate").asText()).isEqualTo("2026-11-25");
+    expectRule(move(block, "2026-11-24", "10:00"), "BLOCK_NOT_PLANNED");
+  }
+
+  private void weekdayEvenings() throws Exception {
+    for (String day : new String[] {"MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"}) {
+      createWindow(day, "18:00", "21:00");
+    }
+  }
+
+  private JsonNode settings(String body) throws Exception {
+    return read(
+        mvc.perform(put("/api/plan/settings").contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isOk()));
+  }
+
+  private ResultActions move(long block, String date, String start) throws Exception {
+    return mvc.perform(
+        postJson(
+            "/api/blocks/" + block + "/move",
+            """
+            {"date": "%s", "startTime": "%s"}
+            """
+                .formatted(date, start)));
+  }
+
+  private static void expectRule(ResultActions result, String code) throws Exception {
+    result.andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.code").value(code));
+  }
+
+  private static int minutesOf(JsonNode plan, long eventId) {
+    int total = 0;
+    for (JsonNode block : plan.get("blocks")) {
+      if (block.get("eventId").asLong() == eventId) {
+        total += block.get("minutes").asInt();
+      }
+    }
+    return total;
+  }
+
+  private static long distinctDates(JsonNode plan) {
+    Set<String> dates = new HashSet<>();
+    plan.get("blocks").forEach(block -> dates.add(block.get("date").asText()));
+    return dates.size();
+  }
+
+  private JsonNode event(long id) throws Exception {
+    for (JsonNode event : read(mvc.perform(get("/api/events")).andExpect(status().isOk()))) {
+      if (event.get("id").asLong() == id) {
+        return event;
+      }
+    }
+    throw new AssertionError("Event " + id + " does not exist");
+  }
+
+  private static JsonNode findBlock(JsonNode plan, long id) {
+    for (JsonNode block : plan.get("blocks")) {
+      if (block.get("id").asLong() == id) {
+        return block;
+      }
+    }
+    throw new AssertionError("Block " + id + " is not in the plan");
   }
 
   private JsonNode generate() throws Exception {

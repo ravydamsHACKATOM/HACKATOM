@@ -13,6 +13,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Comparator;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -234,6 +235,75 @@ class SchedulePlannerTest {
     assertThat(result.freeMinutes()).isZero();
   }
 
+  @Test
+  void chosenMinutesReplaceTheAutomaticShare() {
+    PlannerResult result =
+        plan(
+            WEEK_OPEN,
+            everyWeekday("18:00", "21:00"),
+            List.of(),
+            List.of(
+                chosen(assignment(1, MONDAY.plusDays(4), 300), 100),
+                chosen(assignment(2, MONDAY.plusDays(4), 300), 200)));
+
+    assertThat(minutesOf(result, 1)).isEqualTo(100);
+    assertThat(minutesOf(result, 2)).isEqualTo(200);
+    assertThat(result.shortfalls()).isEmpty();
+  }
+
+  @Test
+  void chosenMinutesNeverGoBeyondTheEffortLeft() {
+    PlannerResult result =
+        plan(
+            WEEK_OPEN,
+            everyWeekday("18:00", "21:00"),
+            List.of(),
+            List.of(
+                chosen(assignment(1, MONDAY.plusDays(4), 100), 500),
+                chosen(assignment(2, MONDAY.plusDays(4), 100), 0)));
+
+    assertThat(minutesOf(result, 1)).isEqualTo(100);
+    assertThat(minutesOf(result, 2)).isZero();
+  }
+
+  @Test
+  void spreadModeStudiesALittleEveryDay() {
+    List<PlannerEvent> events = List.of(assignment(1, MONDAY.plusDays(6), 250));
+
+    PlannerResult packed = plan(WEEK_OPEN, everyWeekday("18:00", "21:00"), List.of(), events);
+    PlannerResult spread =
+        planner.plan(
+            new PlannerInput(
+                MONDAY, WEEK_OPEN, everyWeekday("18:00", "21:00"), List.of(), events, true));
+
+    assertThat(packed.blocks().stream().map(PlannedBlock::date).distinct()).hasSize(2);
+    assertThat(spread.blocks().stream().map(PlannedBlock::date).distinct()).hasSize(5);
+    assertThat(totalMinutes(spread)).isEqualTo(250);
+    assertThat(spread.blocks()).allMatch(block -> block.minutes() == 50);
+  }
+
+  @Test
+  void spreadModeStillPlacesEverythingThatFitsBeforeTheDeadline() {
+    PlannerResult result =
+        planner.plan(
+            new PlannerInput(
+                MONDAY,
+                WEEK_OPEN,
+                everyWeekday("18:00", "21:00"),
+                List.of(),
+                List.of(exam(1, MONDAY.plusDays(2), 240), assignment(2, MONDAY.plusDays(4), 100)),
+                true));
+
+    assertThat(result.shortfalls()).isEmpty();
+    assertThat(minutesOf(result, 1)).isEqualTo(240);
+    assertThat(result.blocks())
+        .filteredOn(block -> block.eventId() == 1)
+        .allMatch(block -> block.date().isBefore(MONDAY.plusDays(2)));
+    assertThat(result.blocks())
+        .isSortedAccordingTo(
+            Comparator.comparing(PlannedBlock::date).thenComparing(PlannedBlock::start));
+  }
+
   private PlannerResult plan(
       LocalDateTime from,
       List<WeeklyWindow> windows,
@@ -257,6 +327,23 @@ class SchedulePlannerTest {
         window(DayOfWeek.WEDNESDAY, start, end),
         window(DayOfWeek.THURSDAY, start, end),
         window(DayOfWeek.FRIDAY, start, end));
+  }
+
+  private static int minutesOf(PlannerResult result, long eventId) {
+    return result.blocks().stream()
+        .filter(block -> block.eventId() == eventId)
+        .mapToInt(PlannedBlock::minutes)
+        .sum();
+  }
+
+  private static PlannerEvent chosen(PlannerEvent event, int minutes) {
+    return new PlannerEvent(
+        event.id(),
+        event.lastStudyDay(),
+        event.remainingMinutes(),
+        event.weight(),
+        event.exam(),
+        minutes);
   }
 
   private static PlannerEvent assignment(long id, LocalDate dueDate, int minutes) {

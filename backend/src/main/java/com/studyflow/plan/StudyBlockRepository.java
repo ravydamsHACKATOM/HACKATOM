@@ -101,6 +101,18 @@ public class StudyBlockRepository {
         .update();
   }
 
+  /** Moves a block and locks it there, so a regeneration keeps the student's choice. */
+  public void moveTo(long id, LocalDate date, LocalTime start, LocalTime end) {
+    jdbc.sql(
+            "UPDATE study_blocks SET block_date = :date, start_time = :start, end_time = :end,"
+                + " locked = 1 WHERE id = :id")
+        .param("date", date.toString())
+        .param("start", start.toString())
+        .param("end", end.toString())
+        .param("id", id)
+        .update();
+  }
+
   private static StudyBlock map(ResultSet rs, int rowNum) throws SQLException {
     return new StudyBlock(
         rs.getLong("id"),

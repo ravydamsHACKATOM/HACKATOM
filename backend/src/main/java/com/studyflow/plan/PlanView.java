@@ -11,6 +11,7 @@ import java.util.List;
  * @param generated false while the student has not asked for a plan for this week yet
  * @param stale true when exams, assignments or availability changed after the plan was generated
  * @param changes what the last regeneration moved; only present right after generating
+ * @param settings how the student chose to organise this week
  */
 public record PlanView(
     LocalDate weekStart,
@@ -22,7 +23,16 @@ public record PlanView(
     List<Warning> warnings,
     Stats stats,
     AdvisorNote note,
-    Changes changes) {
+    Changes changes,
+    Settings settings) {
+
+  /**
+   * @param spread the study time is shared out over the days
+   * @param allocations minutes the student chose per event; empty when the planner decides
+   */
+  public record Settings(boolean spread, List<Allocation> allocations) {}
+
+  public record Allocation(long eventId, int minutes) {}
 
   /** An exam or assignment whose effort does not fit before its deadline. */
   public record Warning(
