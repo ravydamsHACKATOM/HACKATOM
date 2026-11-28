@@ -4,6 +4,7 @@ import { api, setSessionLostHandler } from "./api.js";
 import { html, mount, raw, toast } from "./dom.js";
 import { duration } from "./format.js";
 import { icon } from "./icons.js";
+import { startReminders, stopReminders, updateReminders } from "./reminders.js";
 import { acceptPlan, clear, loadAll, store, theme } from "./store.js";
 import { renderAvailability } from "./views/availability.js";
 import { renderDisciplines } from "./views/disciplines.js";
@@ -227,6 +228,10 @@ function draw({ animate = true } = {}) {
   main.classList.toggle("main--still", !animate);
   route.render(main, context);
   document.title = `${route.label} · StudyFlow`;
+  const plan = store.plan;
+  if (plan && plan.today >= plan.weekStart && plan.today <= plan.weekEnd) {
+    updateReminders(plan.blocks);
+  }
 }
 
 async function refresh({ animate = false } = {}) {
@@ -285,6 +290,7 @@ const context = {
 
 /** Leaves the signed-in area and shows the landing screen again. */
 function leave() {
+  stopReminders();
   clear();
   document.getElementById("modal-root").innerHTML = "";
   document.body.classList.remove("has-modal");
@@ -302,7 +308,28 @@ async function enter(user) {
     return;
   }
   if (!location.hash) history.replaceState(null, "", "#/hoje");
+  startReminders(onReminder);
   draw();
+}
+
+/** What the buttons of a session reminder do. */
+function onReminder(action, id) {
+  if (action === "shown") {
+    // The "next session" card of the today screen becomes "happening now".
+    if (currentRoute().path === "hoje" && !document.body.classList.contains("has-modal")) {
+      draw({ animate: false });
+    }
+    return;
+  }
+  if (action === "done") {
+    planActions.done(id);
+    return;
+  }
+  if (store.weekDate) {
+    store.weekDate = null;
+    run(reloadPlan);
+  }
+  location.hash = "#/hoje";
 }
 
 root.addEventListener("click", async (event) => {

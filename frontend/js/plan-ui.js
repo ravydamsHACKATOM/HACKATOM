@@ -11,7 +11,7 @@ const STATUS_LABEL = {
 };
 
 /** One study block with its actions. `compact` is the denser variant used in the week grid. */
-export function blockCard(block, { compact = false, index = 0 } = {}) {
+export function blockCard(block, { compact = false, index = 0, movable = false } = {}) {
   const planned = block.status === "PLANNED";
   const done = block.status === "DONE";
   const classes = [
@@ -25,9 +25,10 @@ export function blockCard(block, { compact = false, index = 0 } = {}) {
 
   return html`
     <li
-      class="${classes} rise"
+      class="${classes} ${movable ? "block--movable" : ""} rise"
       style="--i:${index}; --tone:${block.disciplineColor}"
       data-block="${block.id}"
+      ${movable ? raw('draggable="true"') : ""}
     >
       ${
         planned || done || block.status === "MISSED"
@@ -63,6 +64,19 @@ export function blockCard(block, { compact = false, index = 0 } = {}) {
       ${
         planned
           ? html`<div class="block__actions">
+              ${
+                movable
+                  ? html`<button
+                      class="icon-button"
+                      type="button"
+                      data-move="${block.id}"
+                      title="Mover para outro dia ou horário"
+                      aria-label="Mover sessão de ${block.eventTitle} para outro dia ou horário"
+                    >
+                      ${raw(icon("move", 18))}
+                    </button>`
+                  : ""
+              }
               <button
                 class="icon-button"
                 type="button"

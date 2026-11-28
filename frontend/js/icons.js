@@ -43,6 +43,8 @@ const PATHS = {
     '<path d="M5 20v-4"/><path d="M12 20v-4" opacity=".3"/><path d="M19 20v-4" opacity=".3"/>',
   weightMid: '<path d="M5 20v-4"/><path d="M12 20v-9"/><path d="M19 20v-9" opacity=".3"/>',
   weightHigh: '<path d="M5 20v-4"/><path d="M12 20v-9"/><path d="M19 20V6"/>',
+  split: '<path d="M12 3v18"/><path d="M4 7h5M4 12h5M4 17h5M15 7h5M15 12h3M15 17h4"/>',
+  move: '<path d="M12 3v18M3 12h18"/><path d="m9 6 3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/>',
 };
 
 export function icon(name, size = 20) {

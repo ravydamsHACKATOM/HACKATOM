@@ -8,6 +8,11 @@ const MESSAGES = {
   WEEK_IN_PAST: "Essa semana já terminou e não pode ser planejada.",
   BLOCK_NOT_PLANNED: "Esse bloco não está mais planejado.",
   BLOCK_SKIPPED: "Esse bloco foi adiado e não pode ser concluído.",
+  BLOCK_IN_PAST: "Esse horário já passou. Escolha um horário a partir de agora.",
+  BLOCK_AFTER_DEADLINE: "Esse dia fica depois do prazo. Estude antes da prova ou da entrega.",
+  BLOCK_OVERLAP: "Já existe outra sessão nesse horário.",
+  BLOCK_OTHER_WEEK: "A sessão só pode mudar de dia dentro da mesma semana.",
+  BLOCK_CROSSES_MIDNIGHT: "A sessão precisa terminar no mesmo dia.",
   NOT_FOUND: "Esse item não existe mais. Atualize a página.",
   EMAIL_TAKEN: "Já existe uma conta com esse e-mail. Tente entrar.",
   INVALID_CREDENTIALS: "E-mail ou senha incorretos.",
@@ -74,10 +79,13 @@ export const api = {
   plan: {
     get: (date) => request("GET", date ? `/plan?date=${date}` : "/plan"),
     generate: (date) => request("POST", date ? `/plan/generate?date=${date}` : "/plan/generate"),
+    settings: (date, body) =>
+      request("PUT", date ? `/plan/settings?date=${date}` : "/plan/settings", body),
   },
   blocks: {
     setDone: (id, value) => request("PATCH", `/blocks/${id}/done`, { value }),
     setLocked: (id, value) => request("PATCH", `/blocks/${id}/locked`, { value }),
     postpone: (id) => request("POST", `/blocks/${id}/postpone`),
+    move: (id, date, startTime) => request("POST", `/blocks/${id}/move`, { date, startTime }),
   },
 };

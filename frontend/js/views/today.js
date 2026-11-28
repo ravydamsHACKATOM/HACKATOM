@@ -1,6 +1,7 @@
 /** "What should I do today?" The first screen after signing in. */
 
 import { api } from "../api.js";
+import { dueOn, minutesOfDay, nextDeadlines, splitDay } from "../day.js";
 import { html, mount, raw } from "../dom.js";
 import {
   addDays,
@@ -13,16 +14,12 @@ import {
   WEEKDAYS,
 } from "../format.js";
 import { disciplineIcon, icon } from "../icons.js";
+import { canSplit, openSplitDialog } from "../plan-dialogs.js";
 import { advisorCard, generateButton, staleBanner, warningsCard } from "../plan-ui.js";
 import { firstName, isEmpty, loadAll } from "../store.js";
 
 /** Timer that keeps the "starts in" label fresh; replaced on every render. */
 let ticker;
-
-const minutesOfDay = (value) => {
-  const [hour, minute] = value.split(":").map(Number);
-  return hour * 60 + minute;
-};
 
 export function renderToday(main, context) {
   clearInterval(ticker);
@@ -44,6 +41,9 @@ export function renderToday(main, context) {
   const doneCount = active.filter((block) => block.status === "DONE").length;
   const upcoming = store.events.filter((event) => event.dueDate >= today);
   const ready = store.disciplines.length && store.events.length && store.windows.length;
+  const dueToday = dueOn(store.events, today);
+  const day = splitDay(blocks);
+  const splittable = ready && isCurrentWeek && plan.generated && canSplit(plan, store.events);
   const showPlan = ready && plan.generated && isCurrentWeek;
   const focus = showPlan ? focusBlock(blocks) : null;
 
@@ -57,6 +57,13 @@ export function renderToday(main, context) {
           <p class="hero__lead">${headline({ showPlan, ready, blocks, active, total, done })}</p>
           <div class="hero__actions">
             ${ready && isCurrentWeek ? generateButton(plan) : ""}
+            ${
+              splittable
+                ? html`<button class="button button--ghost" type="button" data-split-week>
+                    ${raw(icon("split", 18))} Dividir o tempo
+                  </button>`
+                : ""
+            }
             ${
               showPlan
                 ? html`<a class="button button--ghost" href="#/semana">
@@ -125,17 +132,27 @@ export function renderToday(main, context) {
                 : html`
                     ${focus ? focusCard(focus, today) : ""}
                     ${
-                      blocks.length
+                      blocks.length || dueToday.length
                         ? html`
                             <div class="section-title rise" style="--i:3">
                               <h2>Linha do dia</h2>
-                              <span>${plural(blocks.length, "bloco", "blocos")}</span>
+                              <span>${dayCount(day)}</span>
                             </div>
-                            <ol class="timeline">
-                              ${blocks.map((block, index) =>
-                                timelineItem(block, index, focus?.block.id === block.id),
-                              )}
-                            </ol>
+                            ${dueToday.length ? dueTodayList(dueToday) : ""}
+                            ${
+                              day.pending.length
+                                ? html`<ol class="timeline" aria-label="Sessões pendentes">
+                                    ${day.pending.map((block, index) =>
+                                      timelineItem(block, index, focus?.block.id === block.id),
+                                    )}
+                                  </ol>`
+                                : blocks.length
+                                  ? html`<p class="day-clear rise" style="--i:4">
+                                      ${raw(icon("check", 18))} Nenhuma sessão pendente hoje.
+                                    </p>`
+                                  : ""
+                            }
+                            ${history(day)}
                           `
                         : emptyState({
                             image: "empty-today",
@@ -154,13 +171,18 @@ export function renderToday(main, context) {
         <aside class="today__side">
           ${plan.generated ? advisorCard(plan.note, 2) : ""}
           ${plan.generated ? warningsCard(plan.warnings, today, 3) : ""}
-          ${upcoming.length ? deadlinesCard(upcoming.slice(0, 4), today) : ""}
+          ${upcoming.length ? deadlinesCard(nextDeadlines(store.events, today), today) : ""}
         </aside>
       </div>
     `,
   );
 
   main.querySelector("[data-week-reset]")?.addEventListener("click", () => context.setWeek(null));
+  main
+    .querySelector("[data-split-week]")
+    ?.addEventListener("click", () =>
+      openSplitDialog(plan, store.events, () => context.draw({ animate: false })),
+    );
   main.querySelector("[data-seed]")?.addEventListener("click", (event) => {
     event.currentTarget.disabled = true;
     event.currentTarget.classList.add("is-busy");
@@ -257,6 +279,65 @@ function focusCard({ block, current }, today) {
 }
 
 const STATUS_LABEL = { DONE: "Concluído", SKIPPED: "Adiado", MISSED: "Não realizado" };
+
+function dayCount(day) {
+  const parts = [plural(day.pending.length, "pendente", "pendentes")];
+  if (day.done.length) parts.push(plural(day.done.length, "concluída", "concluídas"));
+  return parts.join(" · ");
+}
+
+/** Every exam and assignment due today. All of them show, however many there are. */
+function dueTodayList(events) {
+  return html`
+    <section class="due-today rise" style="--i:3" aria-label="Provas e entregas de hoje">
+      <p class="due-today__label">
+        ${raw(icon("events", 16))} ${plural(events.length, "prazo hoje", "prazos hoje")}
+      </p>
+      <ul class="due-today__list">
+        ${events.map(
+          (event) => html`
+            <li class="due" style="--tone:${event.disciplineColor}">
+              <span class="due__art" aria-hidden="true">
+                ${raw(disciplineIcon(event.disciplineIcon, 30))}
+              </span>
+              <span class="due__text">
+                <span class="due__title">${event.title}</span>
+                <span class="due__meta">
+                  <span class="dot" aria-hidden="true"></span>${event.disciplineName}
+                </span>
+              </span>
+              <span class="tag ${event.type === "EXAM" ? "tag--terracotta" : "tag--blue"}">
+                ${raw(icon(event.type === "EXAM" ? "exam" : "assignment", 14))}
+                ${event.type === "EXAM" ? "Prova" : "Entrega"}
+              </span>
+            </li>
+          `,
+        )}
+      </ul>
+    </section>
+  `;
+}
+
+/** Sessions that left the pending list: done ones stay on record here, with the postponed ones. */
+function history(day) {
+  const items = [...day.done, ...day.skipped];
+  if (!items.length) return "";
+  return html`
+    <details class="history rise" style="--i:5">
+      <summary class="history__summary">
+        <span class="history__mark" aria-hidden="true">${raw(icon("check", 14))}</span>
+        <span>
+          ${plural(day.done.length, "sessão concluída", "sessões concluídas")}
+          ${day.skipped.length ? html` · ${plural(day.skipped.length, "adiada", "adiadas")}` : ""}
+        </span>
+        <span class="history__chevron" aria-hidden="true">${raw(icon("chevron", 16))}</span>
+      </summary>
+      <ol class="timeline timeline--history" aria-label="Sessões concluídas e adiadas">
+        ${items.map((block, index) => timelineItem(block, index, false))}
+      </ol>
+    </details>
+  `;
+}
 
 function timelineItem(block, index, isFocus) {
   const planned = block.status === "PLANNED";
