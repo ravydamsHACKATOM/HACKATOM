@@ -229,3 +229,22 @@ variables and in GitHub Secrets.
   greeting ended in a hard vertical edge in the dark theme, and "Provas e entregas" wrapped onto
   two lines in the sidebar; both were fixed. On phones the summary tiles were cramped, so their
   icons are hidden there. Before this change, signing out was not reachable on phones at all.
+
+### 28/11/2026 — Organising the study time of the day and the week (Claude Code)
+
+- **Main prompt:** improve how studies are organised on the Today and Week screens: show every
+  exam and assignment of the day, split the time between several of them, redistribute sessions
+  over the week without changing real deadlines, show a reminder in the bottom right corner when
+  a session starts, and take done sessions out of the pending list while keeping them as done.
+- **What the AI generated:** a migration with the week preferences, the share and spread rules in
+  the scheduler, the settings and move endpoints, the "Organizar a semana" and "Mover sessão"
+  dialogs, drag and drop between days, the deadlines of each day, the history of done sessions,
+  the reminder, and tests for all of it (4 in `SchedulePlannerTest`, 7 in `StudyFlowApiTest`, 1 in
+  `AuthApiTest` for account isolation and 12 for the new front-end rules).
+- **What the team kept:** all of it.
+- **What the team corrected or rejected, and why:** the first browser check showed a blank Today
+  screen, because a value was read before it was defined; it was fixed before the commit. The
+  "next session" card kept saying "starts in 1 min" after the reminder appeared, so the screen
+  now refreshes when a reminder shows. A chosen share first ignored sessions already done that
+  week, which would plan them again after every regeneration; done and kept sessions now count
+  toward it. Browser and push notifications were left out (see DECISIONS).

@@ -42,13 +42,19 @@ as janelas da semana em que pode estudar. A partir disso, o StudyFlow:
 
 1. **Gera a semana**: blocos de foco de 50 minutos com pausas de 10, sempre dentro dos horários
    livres do estudante, com o prazo mais urgente primeiro.
-2. **Mostra o que fazer hoje**, com o progresso do dia e os próximos prazos.
-3. **Mostra a semana inteira** em um calendário simples.
+2. **Mostra o que fazer hoje**, com o progresso do dia, todas as provas e entregas do dia e os
+   próximos prazos. Sessões concluídas saem da lista de pendentes e continuam registradas.
+3. **Mostra a semana inteira** em um calendário simples, com os prazos de cada dia. As sessões
+   podem mudar de dia (pelo botão ou arrastando) sem mudar nenhum prazo real, e a semana pode ser
+   espalhada para estudar um pouco em cada dia.
 4. **Ajusta o plano**: um bloco pode ser concluído, travado no horário ou adiado. Adiar um bloco
-   ou mudar um prazo refaz o resto da semana e lista o que mudou.
+   ou mudar um prazo refaz o resto da semana e lista o que mudou. Quando há mais de uma prova
+   ou entrega, o estudante escolhe quantas horas cada uma recebe.
 5. **Avisa quando o esforço não cabe** antes de um prazo, em vez de montar um cronograma bonito
    e impossível de cumprir. O estudante decide o que cortar ou antecipar.
 6. **Explica o plano** em linguagem simples: como ficou a semana, o que mudou e dicas práticas.
+7. **Avisa o estudante** com um cartão no canto inferior direito da página quando chega a hora
+   de uma sessão de estudo.
 
 ### Onde a IA entra
 
@@ -62,9 +68,10 @@ as janelas da semana em que pode estudar. A partir disso, o StudyFlow:
 
 ### Recorte do MVP
 
-Entra: os seis pontos acima, contas com cadastro e login (cada estudante vê só os próprios
+Entra: os pontos acima, contas com cadastro e login (cada estudante vê só os próprios
 dados), temas claro e escuro, layout responsivo e uma semana de exemplo que pode ser carregada
-com um clique. Fica de fora, de propósito: integração com o sistema acadêmico, notificações,
+com um clique. Fica de fora, de propósito: integração com o sistema acadêmico, notificações por
+push ou e-mail (o aviso aparece na página aberta),
 sessões de estudo em grupo, importação de dados e recuperação de senha por e-mail. Os motivos
 estão no [DECISIONS.pt-BR.md](DECISIONS.pt-BR.md).
 
@@ -149,9 +156,11 @@ cd frontend && npm ci && npm run lint && npm test
 | GET, POST, PUT, DELETE | `/api/availability` | Horários livres da semana |
 | GET | `/api/plan?date=` | Plano da semana que contém a data |
 | POST | `/api/plan/generate?date=` | Gera ou refaz a semana |
+| PUT | `/api/plan/settings?date=` | Horas por prova ou entrega e modo espalhado; refaz a semana |
 | PATCH | `/api/blocks/{id}/done` | Conclui um bloco ou desfaz |
 | PATCH | `/api/blocks/{id}/locked` | Trava um bloco no horário |
 | POST | `/api/blocks/{id}/postpone` | Adia um bloco e refaz a semana |
+| POST | `/api/blocks/{id}/move` | Move um bloco para outro dia ou horário da semana |
 | GET | `/api/health` | Health check |
 
 Todas as rotas, menos as três de autenticação acima e o health check, exigem sessão.

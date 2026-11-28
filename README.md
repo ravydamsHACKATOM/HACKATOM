@@ -41,13 +41,19 @@ hours) and the weekly windows in which they can study. From that, StudyFlow:
 
 1. **Generates the week**: 50-minute focus blocks with 10-minute breaks, placed only inside the
    student's free hours, most urgent deadline first.
-2. **Shows what to do today**, with progress for the day and the next deadlines.
-3. **Shows the whole week** as a simple calendar.
+2. **Shows what to do today**, with progress for the day, every exam and assignment due that
+   day and the next deadlines. Done sessions leave the pending list and stay on record.
+3. **Shows the whole week** as a simple calendar, with each day's deadlines. Sessions can be
+   moved to another day (button or drag and drop) without changing any real deadline, and the
+   week can be spread out so there is a little study every day.
 4. **Adjusts the plan**: a block can be marked as done, locked in place or postponed. Postponing
-   or changing a deadline rebuilds the rest of the week and lists what moved.
+   or changing a deadline rebuilds the rest of the week and lists what moved. When there is
+   more than one exam or assignment, the student can choose how many hours each one gets.
 5. **Warns when the effort does not fit** before a deadline, instead of producing a schedule that
    looks good but cannot be followed. The student decides what to cut or anticipate.
 6. **Explains the plan** in plain language: how the week looks, what changed, and practical tips.
+7. **Reminds the student** with a card in the bottom right corner of the page when a study
+   session starts.
 
 ### Where AI comes in
 
@@ -60,9 +66,10 @@ hours) and the weekly windows in which they can study. From that, StudyFlow:
 
 ### MVP scope
 
-In: the six points above, accounts with sign-up and sign-in (each student sees only their own
+In: the points above, accounts with sign-up and sign-in (each student sees only their own
 data), light and dark themes, responsive layout and an example week that can be loaded in one
-click. Out, on purpose: integration with the school system, notifications, group study sessions,
+click. Out, on purpose: integration with the school system, push or email notifications (the
+reminder lives in the open page), group study sessions,
 data import and password recovery by email. The reasons are in [DECISIONS.md](DECISIONS.md).
 
 ## Stack
@@ -146,9 +153,11 @@ cd frontend && npm ci && npm run lint && npm test
 | GET, POST, PUT, DELETE | `/api/availability` | Weekly free hours |
 | GET | `/api/plan?date=` | Plan of the week containing the date |
 | POST | `/api/plan/generate?date=` | Generate or rebuild the week |
+| PUT | `/api/plan/settings?date=` | Hours per exam or assignment and spread mode; rebuilds the week |
 | PATCH | `/api/blocks/{id}/done` | Mark a block as done or undo it |
 | PATCH | `/api/blocks/{id}/locked` | Lock a block in its slot |
 | POST | `/api/blocks/{id}/postpone` | Postpone a block and rebuild the week |
+| POST | `/api/blocks/{id}/move` | Move a block to another day or time of its week |
 | GET | `/api/health` | Health check |
 
 Every route except the three auth routes above and the health check needs a session.

@@ -240,3 +240,24 @@ ambiente e em GitHub Secrets.
   linhas na barra lateral; os dois foram corrigidos. No celular os quadros de resumo ficavam
   apertados, então os ícones deles somem ali. Antes desta mudança, não havia como sair da conta
   pelo celular.
+
+### 28/11/2026 — Organização do tempo de estudo do dia e da semana (Claude Code)
+
+- **Prompt principal:** melhorar a organização dos estudos nas telas Dia e Semana: mostrar todas
+  as provas e entregas do dia, dividir o tempo entre várias delas, redistribuir as sessões pela
+  semana sem mudar os prazos reais, mostrar um aviso no canto inferior direito quando chega a hora
+  de uma sessão e tirar as sessões concluídas da lista de pendentes, mantendo o registro.
+- **O que a IA gerou:** uma migração com as preferências da semana, as regras de divisão e do
+  modo espalhado no agendador, os endpoints de configuração e de mover, os modais "Organizar a
+  semana" e "Mover sessão", arrastar entre os dias, os prazos de cada dia, o histórico de sessões
+  concluídas, o aviso e testes para tudo isso (4 no `SchedulePlannerTest`, 7 no
+  `StudyFlowApiTest`, 1 no `AuthApiTest` para o isolamento entre contas e 12 para as novas
+  regras do front-end).
+- **O que o time aproveitou:** tudo.
+- **O que o time corrigiu ou rejeitou, e por quê:** a primeira conferência no navegador mostrou
+  a tela Hoje em branco, porque um valor era lido antes de ser definido; isso foi corrigido antes
+  do commit. O cartão da próxima sessão continuava dizendo "começa em 1 min" depois que o aviso
+  aparecia, então a tela agora se atualiza quando o aviso surge. A divisão escolhida ignorava as
+  sessões já concluídas na semana, o que planejaria tudo de novo a cada regeneração; agora as
+  sessões concluídas e mantidas contam para ela. Notificações do navegador e push ficaram de fora
+  (ver DECISIONS).

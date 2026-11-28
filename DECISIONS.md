@@ -171,3 +171,24 @@ decisions segment of the presentation.
 - **Rationale:** native selects cannot show icons and look different on every system. The custom
   one keeps what makes a native control usable: a real form value, full keyboard support
   (arrows, Enter, Escape, typing to search) and the listbox roles for screen readers.
+
+## 28/11/2026 — Organising the week: shares, spread mode, moving sessions and reminders
+
+- **Decision:** the student can choose how many hours each exam or assignment gets in a week,
+  ask for the sessions to be spread over the days, move a session to another day or time and
+  get a reminder in the page when a session starts. Done sessions leave the pending list of the
+  day and stay listed as done.
+- **How it works:** the choices are stored per week (`week_preferences` and `week_allocations`,
+  migration V3) and the scheduler stays the only place that places blocks: a chosen share
+  replaces the automatic one, capped at the effort left; the spread mode caps each day at an even
+  share of the week and then uses the free time left, so it never leaves out work that would
+  otherwise fit. A moved session keeps its length, is locked in its new place, must stay in its
+  week, before its last study day, in the future and free of overlaps. The exam or assignment
+  date never changes.
+- **Alternatives considered:** editing the due date when a session moves (rejected: it would
+  hide the real deadline), and browser or push notifications (left out: they need a permission
+  prompt or a server that sends messages; the reminder in the page covers the student who has
+  StudyFlow open). This updates the "notifications" item left out of the MVP scope above.
+- **Rationale:** with several deadlines on the same days the automatic order (most urgent
+  first) can fill the evenings with one subject. Students asked to decide the split themselves
+  and to study a little every day, without losing sight of the real dates.

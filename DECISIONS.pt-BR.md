@@ -175,3 +175,24 @@ decisões da apresentação.
 - **Motivo:** o select nativo não mostra ícones e muda de aparência em cada sistema. O nosso
   mantém o que torna um controle nativo usável: um valor real de formulário, uso completo pelo
   teclado (setas, Enter, Esc, digitar para buscar) e os papéis de listbox para leitores de tela.
+
+## 28/11/2026 — Organizar a semana: divisão do tempo, modo espalhado, mover sessões e avisos
+
+- **Decisão:** o estudante pode escolher quantas horas cada prova ou entrega recebe na semana,
+  pedir que as sessões sejam espalhadas pelos dias, mover uma sessão para outro dia ou horário e
+  receber um aviso na página quando uma sessão começa. Sessões concluídas saem da lista de
+  pendentes do dia e continuam listadas como concluídas.
+- **Como funciona:** as escolhas ficam guardadas por semana (`week_preferences` e
+  `week_allocations`, migração V3) e o agendador continua sendo o único lugar que posiciona
+  blocos: a divisão escolhida substitui a automática, limitada ao esforço que falta; o modo
+  espalhado limita cada dia a uma parte igual da semana e depois usa o tempo livre que sobrar,
+  então nunca deixa de fora um estudo que caberia. Uma sessão movida mantém a duração, fica
+  travada no novo lugar e precisa ficar na mesma semana, antes do último dia de estudo, no futuro
+  e sem sobrepor outra. A data da prova ou entrega nunca muda.
+- **Alternativas consideradas:** mudar a data do prazo quando a sessão muda de dia (rejeitada:
+  esconderia o prazo real) e notificações do navegador ou push (ficaram de fora: pedem permissão
+  ou um servidor que envie mensagens; o aviso na página atende quem está com o StudyFlow aberto).
+  Isto atualiza o item "notificações" que ficou fora do recorte do MVP, acima.
+- **Motivo:** com vários prazos nos mesmos dias, a ordem automática (o mais urgente primeiro)
+  pode encher as noites com uma única matéria. Os estudantes pediram para decidir a divisão e
+  estudar um pouco por dia, sem perder de vista as datas reais.
